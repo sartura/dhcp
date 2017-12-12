@@ -1,0 +1,105 @@
+module terastream-dhcp {
+
+    namespace "http://terastrm.net/ns/yang/terastream-dhcp";
+
+    prefix "ts-dhcp";
+
+    organization
+        "Deutsche Telekom AG";
+
+    contact
+        "Landgrabenweg 151
+        53227 Bonn, Germany";
+
+    description
+        "This module defines DHCP used in the TeraStream home gateway project.";
+
+    revision "2017-12-07" {
+        description
+            "Version 0.1.0";
+    }
+
+    container dhcp-servers {
+      description
+        "Data nodes for the operational state of dhcp server";
+      list dhcp-server {
+        key "name";
+        description
+          "The list of dhcp server config sections on the device";
+        leaf name {
+          type string;
+          description 
+          "The name of the dhcp config section";
+        }
+        leaf ignore {
+          type boolean;
+        }
+        leaf interface {
+          type string;
+          description 
+          "Interface";
+          mandatory true;
+        }
+        leaf start {
+          type uint8;
+        }
+        leaf limit {
+          type uint8;
+        }
+        leaf leasetime {
+          type string;
+        }
+        leaf dhcpv6 {
+          type string;
+        }
+        leaf ra {
+          type string;
+        }
+        leaf ra_management {
+          type string;
+        }
+        leaf sntp {
+          type string;
+        }
+        leaf-list dhcp_option {
+          type string;
+        }
+      }
+    }
+
+    container dhcp-clients {
+      description
+        "Data nodes for the operational state of dhcp clients";
+      list dhcp-server {
+        key "name";
+        description
+          "The list of dhcp client config sections on the device";
+        leaf name {
+          type string;
+          description 
+          "The name of the dhcp config section";
+        }
+        leaf proto {
+          type string;
+        }
+        leaf accept_ra {
+          type string;
+        }
+        leaf request_pd {
+          type string;
+        }
+        leaf request_na {
+          type string;
+        }
+        leaf aftr_v4_local {
+          type string;
+        }
+        leaf aftr_v4_remote {
+          type string;
+        }
+        leaf reqopts {
+          type string;
+        }
+      }
+    }
+}
