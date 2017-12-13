@@ -4,6 +4,10 @@ module terastream-dhcp {
 
     prefix "ts-dhcp";
 
+    import ietf-inet-types {
+      prefix inet;
+    }
+
     organization
         "Deutsche Telekom AG";
 
@@ -28,7 +32,7 @@ module terastream-dhcp {
           "The list of dhcp server config sections on the device";
         leaf name {
           type string;
-          description 
+          description
           "The name of the dhcp config section";
         }
         leaf ignore {
@@ -36,7 +40,7 @@ module terastream-dhcp {
         }
         leaf interface {
           type string;
-          description 
+          description
           "Interface";
           mandatory true;
         }
@@ -76,7 +80,7 @@ module terastream-dhcp {
           "The list of dhcp client config sections on the device";
         leaf name {
           type string;
-          description 
+          description
           "The name of the dhcp config section";
         }
         leaf proto {
@@ -102,4 +106,73 @@ module terastream-dhcp {
         }
       }
     }
+
+	container dhcp-v4-leases {
+      description
+        "DHCP leases for IPv4";
+      config false;
+      list dhcp-v4-lease {
+        key "name";
+        description
+          "One instance of a DHCP IPv4 lease";
+        leaf name {
+          type string;
+          description
+          "The name of the dhcp config section";
+	    }
+        leaf leasetime {
+          type string;
+        }
+        leaf hostname {
+          type string;
+        }
+        leaf ipaddr {
+          type string;
+        }
+        leaf macaddr {
+          type string;
+        }
+        leaf device {
+          type string;
+        }
+        leaf connected {
+          type boolean;
+        }
+      }
+	}
+
+	container dhcp-v6-leases {
+      description
+        "DHCP leases for IPv6";
+      config false;
+      list dhcp-v6-lease {
+        key "duid iaid";
+        description
+          "One instance of a DHCP IPv6 lease";
+        leaf duid {
+          type string;
+        }
+        leaf iaid {
+          type uint32;
+        }
+        leaf interface {
+          type string;
+        }
+        leaf hostname {
+          type string;
+        }
+        leaf assigned {
+          type uint32;
+        }
+        leaf length {
+          type uint8;
+        }
+        leaf-list ipv6 {
+          type inet:ipv6-address-no-zone;
+        }
+        leaf valid {
+          type int32;
+        }
+      }
+	}
 }
