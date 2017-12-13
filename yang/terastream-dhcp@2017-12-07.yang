@@ -70,7 +70,7 @@ module terastream-dhcp {
     container dhcp-clients {
       description
         "Data nodes for the operational state of dhcp clients";
-      list dhcp-server {
+      list dhcp-client {
         key "name";
         description
           "The list of dhcp client config sections on the device";
