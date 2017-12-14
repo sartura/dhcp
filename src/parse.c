@@ -741,13 +741,18 @@ void dhcp_v4_cb(struct ubus_request *req, int type, struct blob_attr *msg)
     counter = 0;
     json_object_object_foreach(r, key, val)
     {
+        long number = 0;
+        char *string_number = NULL;
+
         json_object_object_get_ex(val, "leasetime", &v);
         CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object leasetime");
+        string_number = (char *) json_object_get_string(v);
+        number = strtol(string_number, &string_number, 10);
         snprintf(xpath, XPATH_MAX_LEN, "/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='%s']/leasetime", key);
         rc = sr_val_set_xpath(&sr_val[counter], xpath);
         CHECK_RET(rc, cleanup, "failed sr_val_set_xpath: %s", sr_strerror(rc));
-        rc = sr_val_set_str_data(&sr_val[counter], SR_STRING_T, (char *) json_object_get_string(v));
-        CHECK_RET(rc, cleanup, "failed sr_val_set_str_data: %s", sr_strerror(rc));
+        (&sr_val[counter])->data.uint32_val = number;
+        (&sr_val[counter])->type = SR_UINT32_T;
         counter++;
 
         json_object_object_get_ex(val, "hostname", &v);
