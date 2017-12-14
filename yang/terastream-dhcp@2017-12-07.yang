@@ -41,6 +41,7 @@ module terastream-dhcp {
         }
         leaf ignore {
           type boolean;
+          default "false";
         }
         leaf interface {
           type string;
@@ -50,12 +51,15 @@ module terastream-dhcp {
         }
         leaf start {
           type uint8;
+          default "100";
         }
         leaf limit {
           type uint8;
+          default "150";
         }
         leaf leasetime {
           type string;
+          default "12h";
         }
         leaf dhcpv6 {
           type string;
