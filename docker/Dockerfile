@@ -177,5 +177,11 @@ COPY dhcp /etc/config/dhcp
 
 COPY network /etc/config/network
 
+COPY ubus.dhcp /usr/libexec/rpcd/dhcp
+RUN chmod +x /usr/libexec/rpcd/dhcp
+
+COPY ubus.router.network /usr/libexec/rpcd/router.network
+RUN chmod +x /usr/libexec/rpcd/router.network
+
 COPY supervisord.conf /etc/supervisord.conf
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
