@@ -28,6 +28,9 @@ int sync_datastores(ctx_t *ctx);
 int load_startup_datastore(ctx_t *ctx);
 int sysrepo_to_uci(ctx_t *ctx, sr_change_oper_t op, sr_val_t *old_val, sr_val_t *new_val, sr_notif_event_t event);
 
+int fill_dhcp_v6_data(ctx_t *ctx, char *xpath, sr_val_t **values, size_t *values_cnt);
+int fill_dhcp_v4_data(ctx_t *ctx, char *xpath, sr_val_t **values, size_t *values_cnt);
+
 typedef struct ubus_ctx_s {
 	ctx_t *ctx;
 	sr_val_t **values;

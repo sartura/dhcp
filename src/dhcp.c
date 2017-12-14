@@ -15,6 +15,38 @@ static const char *config_file_dhcp = "dhcp";
 static const char *config_file_network = "network";
 static const char *yang_model = "terastream-dhcp";
 
+static int dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
+{
+    int rc = SR_ERR_OK;
+    ctx_t *ctx = private_ctx;
+
+    rc = fill_dhcp_v4_data(ctx, (char *) xpath, values, values_cnt);
+    if (SR_ERR_OK != rc) {
+        DBG("failed to load state data: %s", sr_strerror(rc));
+        rc = SR_ERR_OK;
+    }
+    CHECK_RET(rc, error, "failed to load state data: %s", sr_strerror(rc));
+
+error:
+    return rc;
+}
+
+static int dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
+{
+    int rc = SR_ERR_OK;
+    ctx_t *ctx = private_ctx;
+
+    rc = fill_dhcp_v6_data(ctx, (char *) xpath, values, values_cnt);
+    if (SR_ERR_OK != rc) {
+        DBG("failed to load state data: %s", sr_strerror(rc));
+        rc = SR_ERR_OK;
+    }
+    CHECK_RET(rc, error, "failed to load state data: %s", sr_strerror(rc));
+
+error:
+    return rc;
+}
+
 static int parse_change(sr_session_ctx_t *session, const char *module_name, ctx_t *ctx, sr_notif_event_t event)
 {
     sr_change_iter_t *it = NULL;
@@ -111,6 +143,12 @@ int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
 
     rc = sr_module_change_subscribe(ctx->sess, yang_model, module_change_cb, *private_ctx, 0, SR_SUBSCR_DEFAULT, &ctx->sub);
     CHECK_RET(rc, error, "initialization error: %s", sr_strerror(rc));
+
+    rc = sr_dp_get_items_subscribe(ctx->sess, "/terastream-dhcp:dhcp-v4-leases", dhcp_v4_state_data_cb, ctx, SR_SUBSCR_CTX_REUSE, &ctx->sub);
+    CHECK_RET(rc, error, "failed sr_dp_get_items_subscribe: %s", sr_strerror(rc));
+
+    rc = sr_dp_get_items_subscribe(ctx->sess, "/terastream-dhcp:dhcp-v6-leases", dhcp_v6_state_data_cb, ctx, SR_SUBSCR_CTX_REUSE, &ctx->sub);
+    CHECK_RET(rc, error, "failed sr_dp_get_items_subscribe: %s", sr_strerror(rc));
 
     INF_MSG("Plugin initialized successfully");
 

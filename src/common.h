@@ -22,7 +22,7 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-#define XPATH_MAX_LEN 100
+#define XPATH_MAX_LEN 256
 
 #define ARR_SIZE(a) sizeof a / sizeof a[0]
 
