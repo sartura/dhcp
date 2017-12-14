@@ -18,8 +18,53 @@
 #include "uci.h"
 
 typedef int (*sr_callback)(ctx_t *, sr_change_oper_t, char *, char *, char *, sr_val_t *);
+typedef int (*uci_callback)(ctx_t *, char *, char *, char *);
 
-int sysrepo_option_callback(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
+bool string_eq(char *first, char *second)
+{
+    if (0 != strcmp(first, second)) {
+        return false;
+    }
+
+    if (strlen(first) != strlen(second)) {
+        return false;
+    }
+
+    return true;
+}
+
+int uci_section_cb(ctx_t *ctx, char *xpath, char *ucipath, char *value)
+{
+    return SR_ERR_OK;
+}
+
+int uci_option_cb(ctx_t *ctx, char *xpath, char *ucipath, char *value)
+{
+    int rc = SR_ERR_OK;
+
+    rc = sr_set_item_str(ctx->startup_sess, xpath, value, SR_EDIT_DEFAULT);
+    CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
+
+cleanup:
+    return rc;
+}
+
+int uci_boolean_cb(ctx_t *ctx, char *xpath, char *ucipath, char *value)
+{
+    int rc = SR_ERR_OK;
+
+    if (string_eq(value, "1") || string_eq(value, "true") || string_eq(value, "on")) {
+        rc = sr_set_item_str(ctx->startup_sess, xpath, "true", SR_EDIT_DEFAULT);
+    } else {
+        rc = sr_set_item_str(ctx->startup_sess, xpath, "false", SR_EDIT_DEFAULT);
+    }
+    CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
+
+cleanup:
+    return rc;
+}
+
+int sysrepo_option_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
 {
     int rc = SR_ERR_OK;
 
@@ -44,7 +89,7 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_boolean_callback(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
+int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
 {
     int rc = SR_ERR_OK;
 
@@ -88,7 +133,7 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_section_callback(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
+int sysrepo_section_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
 {
     int rc = SR_ERR_OK;
 
@@ -115,7 +160,7 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_list_callback(ctx_t *ctx, sr_change_oper_t op, char *orig_xpath, char *orig_ucipath, char *key, sr_val_t *val)
+int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *orig_xpath, char *orig_ucipath, char *key, sr_val_t *val)
 {
     int rc = SR_ERR_OK;
     size_t count = 0;
@@ -176,162 +221,36 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_list_callback_enable(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *orig_ucipath, char *key, sr_val_t *val)
-{
-    int rc = SR_ERR_OK;
-    struct uci_ptr ptr = {};
-    char ucipath[] = "voice_client.direct_dial.direct_dial";
-
-    if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
-        if (false == val->data.bool_val) {
-            rc = uci_lookup_ptr(ctx->uctx, &ptr, (char *) ucipath, true);
-            UCI_CHECK_RET(rc, uci_error, "uci_lookup_ptr %d, path %s", rc, ucipath);
-            if (NULL != ptr.o) {
-                /* remove the UCI list first */
-                rc = uci_delete(ctx->uctx, &ptr);
-                UCI_CHECK_RET(rc, uci_error, "uci_delete %d, path %s", rc, ucipath);
-
-                rc = uci_save(ctx->uctx, ptr.p);
-                UCI_CHECK_RET(rc, uci_error, "uci_save %d %s", rc, ucipath);
-
-                rc = uci_commit(ctx->uctx, &(ptr.p), false);
-                UCI_CHECK_RET(rc, uci_error, "uci_commit %d %s", rc, ucipath);
-            }
-        } else {
-            return sysrepo_list_callback(ctx, op, xpath, "voice_client.direct_dial.direct_dial", key, val);
-        }
-    } else if (SR_OP_DELETED == op) {
-        // TODO
-    }
-
-    return rc;
-uci_error:
-    return SR_ERR_INTERNAL;
-}
-
 /* Configuration part of the plugin. */
 typedef struct sr_uci_mapping {
-    sr_callback callback;
-    bool boolean;
+    sr_callback sr_callback;
+    uci_callback uci_callback;
     char *ucipath;
     char *xpath;
 } sr_uci_link;
 
-bool string_eq(char *first, char *second)
-{
-    if (0 == strcmp(first, second)) {
-        if (strlen(first) == strlen(second)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 static sr_uci_link table_sr_uci[] = {
-    {sysrepo_section_callback, false, "dhcp.%s", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']"},
-    {sysrepo_boolean_callback, true, "dhcp.%s.ignore", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ignore"},
-    {sysrepo_option_callback, false, "dhcp.%s.interface", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface"},
-    {sysrepo_option_callback, false, "dhcp.%s.start", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start"},
-    {sysrepo_option_callback, false, "dhcp.%s.limit", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/limit"},
-    {sysrepo_option_callback, false, "dhcp.%s.leasetime", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/leasetime"},
-    {sysrepo_option_callback, false, "dhcp.%s.dhcpv6", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcpv6"},
-    {sysrepo_option_callback, false, "dhcp.%s.ra", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra"},
-    {sysrepo_option_callback, false, "dhcp.%s.ra_management", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra_management"},
-    {sysrepo_option_callback, false, "dhcp.%s.sntp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp"},
-    {sysrepo_list_callback, false, "dhcp.%s.dhcp_option", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option"},
+    {sysrepo_section_cb, uci_section_cb, "dhcp.%s", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']"},
+    {sysrepo_boolean_cb, uci_boolean_cb, "dhcp.%s.ignore", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ignore"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.interface", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.start", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.limit", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/limit"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.leasetime", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/leasetime"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.dhcpv6", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcpv6"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.ra", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.ra_management", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra_management"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.sntp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp"},
+    {sysrepo_list_cb, uci_option_cb, "dhcp.%s.dhcp_option", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option"},
 
-    {sysrepo_section_callback, false, "network.%s", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']"},
-    {sysrepo_option_callback, false, "network.%s.proto", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/proto"},
-    {sysrepo_option_callback, false, "network.%s.accept_ra", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra"},
-    {sysrepo_option_callback, false, "network.%s.request_pd", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_pd"},
-    {sysrepo_option_callback, false, "network.%s.request_na", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_na"},
-    {sysrepo_option_callback, false, "network.%s.aftr_v4_local", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_local"},
-    {sysrepo_option_callback, false, "network.%s.aftr_v4_remote", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_remote"},
-    {sysrepo_option_callback, false, "network.%s.reqopts", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/reqopts"},
+    {sysrepo_section_cb, uci_section_cb, "network.%s", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']"},
+    {sysrepo_option_cb, uci_option_cb, "network.%s.proto", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/proto"},
+    {sysrepo_option_cb, uci_option_cb, "network.%s.accept_ra", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra"},
+    {sysrepo_option_cb, uci_option_cb, "network.%s.request_pd", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_pd"},
+    {sysrepo_option_cb, uci_option_cb, "network.%s.request_na", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_na"},
+    {sysrepo_option_cb, uci_option_cb, "network.%s.aftr_v4_local", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_local"},
+    {sysrepo_option_cb, uci_option_cb, "network.%s.aftr_v4_remote", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_remote"},
+    {sysrepo_option_cb, uci_option_cb, "network.%s.reqopts", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/reqopts"},
 };
-
-/* parse UCI list dhcp_option in dhcp */
-static int parse_uci_config_list(ctx_t *ctx, char *key)
-{
-    int rc = SR_ERR_OK;
-    struct uci_option *o;
-    struct uci_element *el;
-    struct uci_ptr ptr = {};
-    char ucipath[XPATH_MAX_LEN] = {0};
-    char xpath[XPATH_MAX_LEN] = {0};
-
-    snprintf(ucipath, XPATH_MAX_LEN, "dhcp.%s.dhcp_option", key);
-    snprintf(xpath, XPATH_MAX_LEN, "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option", key);
-
-    rc = uci_lookup_ptr(ctx->uctx, &ptr, (char *) ucipath, true);
-    UCI_CHECK_RET(rc, uci_error, "uci_lookup_ptr %d, path %s", rc, ucipath);
-
-    if (NULL == ptr.o) {
-        goto uci_error;
-    }
-
-    uci_foreach_element(&ptr.o->v.list, el)
-    {
-        o = uci_to_option(el);
-        if (NULL == o && NULL == o->e.name) {
-            goto uci_error;
-        }
-        rc = sr_set_item_str(ctx->startup_sess, xpath, o->e.name, SR_EDIT_DEFAULT);
-        CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
-    }
-
-cleanup:
-    return rc;
-uci_error:
-    return SR_ERR_INTERNAL;
-}
-
-static int parse_uci_config(ctx_t *ctx, char *key, char *match)
-{
-    char xpath[XPATH_MAX_LEN] = {0};
-    char ucipath[XPATH_MAX_LEN] = {0};
-    char *uci_val = calloc(1, 100);
-    int rc = SR_ERR_OK;
-
-    const int n_mappings = ARR_SIZE(table_sr_uci);
-    for (int i = 0; i < n_mappings; i++) {
-        snprintf(xpath, XPATH_MAX_LEN, table_sr_uci[i].xpath, key);
-        snprintf(ucipath, XPATH_MAX_LEN, table_sr_uci[i].ucipath, key);
-        if (NULL == strstr(xpath, match)) {
-            continue;
-        }
-        rc = get_uci_item(ctx->uctx, ucipath, &uci_val);
-        if (UCI_OK == rc) {
-            UCI_CHECK_RET(rc, cleanup, "get_uci_item %d", rc);
-            INF("%s : %s", xpath, uci_val);
-            if (sysrepo_list_callback == table_sr_uci[i].callback) {
-                /* check if list value */
-                rc = parse_uci_config_list(ctx, key);
-            } else if (table_sr_uci[i].boolean) {
-                /* check if boolean value */
-                if (string_eq(uci_val, "1") || string_eq(uci_val, "true") || string_eq(uci_val, "on")) {
-                    rc = sr_set_item_str(ctx->startup_sess, xpath, "true", SR_EDIT_DEFAULT);
-                } else {
-                    rc = sr_set_item_str(ctx->startup_sess, xpath, "false", SR_EDIT_DEFAULT);
-                }
-            } else {
-                rc = sr_set_item_str(ctx->startup_sess, xpath, uci_val, SR_EDIT_DEFAULT);
-            }
-            CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
-        }
-    }
-
-    rc = SR_ERR_OK;
-cleanup:
-    if (SR_ERR_NOT_FOUND == rc) {
-        rc = SR_ERR_OK;
-    }
-    if (NULL != uci_val) {
-        free(uci_val);
-    }
-
-    return rc;
-}
 
 char *get_key_value(char *orig_xpath)
 {
@@ -383,7 +302,7 @@ int sysrepo_to_uci(ctx_t *ctx, sr_change_oper_t op, sr_val_t *old_val, sr_val_t 
         snprintf(xpath, XPATH_MAX_LEN, table_sr_uci[i].xpath, key);
         snprintf(ucipath, XPATH_MAX_LEN, table_sr_uci[i].ucipath, key);
         if (string_eq(xpath, orig_xpath)) {
-            rc = table_sr_uci[i].callback(ctx, op, xpath, ucipath, key, new_val);
+            rc = table_sr_uci[i].sr_callback(ctx, op, xpath, ucipath, key, new_val);
             CHECK_RET(rc, error, "failed sysrepo operation %s", sr_strerror(rc));
         }
     }
@@ -397,7 +316,10 @@ error:
 
 static int init_sysrepo_data(ctx_t *ctx)
 {
-    struct uci_element *e;
+    char xpath[XPATH_MAX_LEN] = {0};
+    char ucipath[XPATH_MAX_LEN] = {0};
+    char *uci_val = NULL;
+    struct uci_element *e, *el;
     struct uci_section *s;
     int rc;
 
@@ -412,8 +334,33 @@ static int init_sysrepo_data(ctx_t *ctx)
     {
         s = uci_to_section(e);
         if (string_eq(s->type, "dhcp")) {
-            rc = parse_uci_config(ctx, s->e.name, "dhcp-server");
-            CHECK_RET(rc, cleanup, "failed to add sysrepo data: %s", sr_strerror(rc));
+            uci_foreach_element(&s->options, el)
+            {
+                struct uci_option *o = uci_to_option(el);
+                char uci_element[MAX_UCI_PATH] = {0};
+                snprintf(uci_element, MAX_UCI_PATH, "%s.%s.%s", ctx->config_file_dhcp, s->e.name, o->e.name);
+
+                const int n_mappings = ARR_SIZE(table_sr_uci);
+                for (int i = 0; i < n_mappings; i++) {
+                    snprintf(xpath, XPATH_MAX_LEN, table_sr_uci[i].xpath, s->e.name);
+                    snprintf(ucipath, XPATH_MAX_LEN, table_sr_uci[i].ucipath, s->e.name);
+                    if (true != string_eq(ucipath, uci_element)) {
+                        continue;
+                    }
+
+                    if (UCI_TYPE_STRING == o->type) {
+                        rc = table_sr_uci[i].uci_callback(ctx, xpath, ucipath, o->v.string);
+                        CHECK_RET(rc, cleanup, "failed sysrepo operation %s", sr_strerror(rc));
+                    } else {
+                        struct uci_element *list_el;
+                        uci_foreach_element(&o->v.list, list_el)
+                        {
+                            rc = table_sr_uci[i].uci_callback(ctx, xpath, ucipath, list_el->name);
+                            CHECK_RET(rc, cleanup, "failed sysrepo operation %s", sr_strerror(rc));
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -431,15 +378,40 @@ static int init_sysrepo_data(ctx_t *ctx)
             /* parse only interfaces with
              * option proto 'dhcpv6' */
             char ucipath[MAX_UCI_PATH] = {0};
-            snprintf(ucipath, XPATH_MAX_LEN, "network.%s.proto", s->e.name);
+            snprintf(ucipath, MAX_UCI_PATH, "network.%s.proto", s->e.name);
             char *uci_val = calloc(1, MAX_UCI_PATH);
             rc = get_uci_item(ctx->uctx, ucipath, &uci_val);
-            INF_MSG("test");
             if (SR_ERR_OK == rc && 0 == strcmp(uci_val, "dhcpv6")) {
-                rc = parse_uci_config(ctx, s->e.name, "dhcp-client");
-                CHECK_RET(rc, cleanup, "failed to add sysrepo data: %s", sr_strerror(rc));
+                uci_foreach_element(&s->options, el)
+                {
+                    struct uci_option *o = uci_to_option(el);
+                    char uci_element[MAX_UCI_PATH] = {0};
+                    snprintf(uci_element, MAX_UCI_PATH, "%s.%s.%s", ctx->config_file_network, s->e.name, o->e.name);
+
+                    const int n_mappings = ARR_SIZE(table_sr_uci);
+                    for (int i = 0; i < n_mappings; i++) {
+                        snprintf(xpath, XPATH_MAX_LEN, table_sr_uci[i].xpath, s->e.name);
+                        snprintf(ucipath, XPATH_MAX_LEN, table_sr_uci[i].ucipath, s->e.name);
+                        if (true != string_eq(ucipath, uci_element)) {
+                            continue;
+                        }
+
+                        if (UCI_TYPE_STRING == o->type) {
+                            rc = table_sr_uci[i].uci_callback(ctx, xpath, ucipath, o->v.string);
+                            CHECK_RET(rc, cleanup, "failed sysrepo operation %s", sr_strerror(rc));
+                        } else {
+                            struct uci_element *list_el;
+                            uci_foreach_element(&o->v.list, list_el)
+                            {
+                                rc = table_sr_uci[i].uci_callback(ctx, xpath, ucipath, list_el->name);
+                                CHECK_RET(rc, cleanup, "failed sysrepo operation %s", sr_strerror(rc));
+                            }
+                        }
+                    }
+                }
             }
             free(uci_val);
+            uci_val = NULL;
         }
     }
 
@@ -450,6 +422,9 @@ static int init_sysrepo_data(ctx_t *ctx)
     return SR_ERR_OK;
 
 cleanup:
+    if (NULL != uci_val) {
+        free(uci_val);
+    }
     if (ctx->uctx) {
         uci_free_context(ctx->uctx);
         ctx->uctx = NULL;
