@@ -95,7 +95,7 @@ int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipa
 
     /* add/change leafs */
     if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
-        if (val->data.bool_val) {
+        if (true == val->data.bool_val) {
             rc = set_uci_item(ctx->uctx, ucipath, "1");
         } else {
             rc = set_uci_item(ctx->uctx, ucipath, "0");
@@ -104,28 +104,6 @@ int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipa
     } else if (SR_OP_DELETED == op) {
         rc = uci_del(ctx, ucipath);
         UCI_CHECK_RET(rc, uci_error, "uci_del %d", rc);
-    }
-
-    if (val->data.bool_val) {
-        /* voice_client init.d script will delete the password when the leaf is set
-         * to disabled, so after it's enabled the password needs to be written, if
-         * it exists, to UCI again */
-        sr_val_t *value = NULL;
-        char password_xpath[XPATH_MAX_LEN] = {0};
-        char password_ucipath[XPATH_MAX_LEN] = {0};
-
-        snprintf(password_xpath, XPATH_MAX_LEN, "/terastream-sip:sip/sip-account[account='%s']/password", key);
-        snprintf(password_ucipath, XPATH_MAX_LEN, "voice_client.%s.secret", key);
-
-        rc = sr_get_item(ctx->sess, password_xpath, &value);
-        if (SR_ERR_NOT_FOUND == rc) {
-            return SR_ERR_OK;
-        } else if (SR_ERR_OK != rc) {
-            return rc;
-        }
-        rc = set_uci_item(ctx->uctx, password_ucipath, value->data.string_val);
-        sr_free_val(value);
-        UCI_CHECK_RET(rc, uci_error, "set_uci_item %x", rc);
     }
 
     return rc;
@@ -137,16 +115,13 @@ int sysrepo_section_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipa
 {
     int rc = SR_ERR_OK;
 
-    /* for now there is only one */
-    char *element = "sip_service_provider";
-
     /* add/change leafs */
     if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
         // TODO check
         if (NULL != strstr(xpath, "dhcp-server")) {
-            sprintf(ucipath, "%s.%s=%s", ctx->config_file_dhcp, key, element);
+            sprintf(ucipath, "%s.%s=%s", ctx->config_file_dhcp, key, "dhcp");
         } else {
-            sprintf(ucipath, "%s.%s=%s", ctx->config_file_network, key, element);
+            sprintf(ucipath, "%s.%s=%s", ctx->config_file_network, key, "interface");
         }
         rc = set_uci_section(ctx, ucipath);
         UCI_CHECK_RET(rc, uci_error, "set_uci_item %x", rc);
@@ -160,26 +135,13 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *orig_xpath, char *orig_ucipath, char *key, sr_val_t *val)
+int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
 {
     int rc = SR_ERR_OK;
     size_t count = 0;
-    bool enabled = true;
     sr_val_t *values = NULL;
     struct uci_ptr ptr = {};
     char set_path[XPATH_MAX_LEN] = {0};
-    char ucipath[] = "voice_client.direct_dial.direct_dial";
-    char xpath[] = "/terastream-sip:sip/digitmap/dials";
-
-    /* check if digitmap is enabled */
-    rc = sr_get_item(ctx->sess, "/terastream-sip:sip/digitmap/enabled", &values);
-    CHECK_RET(rc, cleanup, "failed sr_get_item: %s", sr_strerror(rc));
-    enabled = values->data.bool_val;
-    sr_free_val(values);
-    values = NULL;
-    if (false == enabled) {
-        return rc;
-    }
 
     rc = uci_lookup_ptr(ctx->uctx, &ptr, (char *) ucipath, true);
     UCI_CHECK_RET(rc, uci_error, "uci_lookup_ptr %d, path %s", rc, ucipath);
@@ -189,12 +151,16 @@ int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *orig_xpath, char *ori
         UCI_CHECK_RET(rc, uci_error, "uci_delete %d, path %s", rc, ucipath);
     }
 
+    if (SR_OP_DELETED == op) {
+        return rc;
+    }
+
     /* get all list instances */
     rc = sr_get_items(ctx->sess, xpath, &values, &count);
     CHECK_RET(rc, cleanup, "failed sr_get_items: %s", sr_strerror(rc));
 
     for (size_t i = 0; i < count; i++) {
-        sprintf(set_path, "%s%s%s", orig_ucipath, "=", values[i].data.string_val);
+        sprintf(set_path, "%s%s%s", ucipath, "=", values[i].data.string_val);
 
         rc = uci_lookup_ptr(ctx->uctx, &ptr, set_path, true);
         UCI_CHECK_RET(rc, uci_error, "lookup_pointer %d %s", rc, set_path);
