@@ -141,7 +141,8 @@ module terastream-dhcp {
         }
         leaf accept_ra {
           description
-            "Specifies whether to accept IPv6 Router Advertisements on this interface";
+            "Specifies whether to accept IPv6 Router Advertisements on
+            this interface";
           type boolean;
           default "true";
         }
@@ -159,7 +160,8 @@ module terastream-dhcp {
         }
         leaf reqopts {
           description
-            "Space-separated list of additional DHCP options to request from the server.";
+            "Space-separated list of additional DHCP options to request
+            from the server.";
           type string;
         }
       }
@@ -174,26 +176,38 @@ module terastream-dhcp {
         description
           "One instance of a DHCP IPv4 lease";
         leaf name {
-          type string;
           description
-          "The name of the dhcp config section";
+            "The name of the DHCPv4 lease";
+          type string;
         }
         leaf leasetime {
+          description
+            "DHCPv4 address leasetime.";
           type uint32;
         }
         leaf hostname {
+          description
+            "Hostname of the device.";
           type string;
         }
         leaf ipaddr {
+          description
+            "Assigned IPv4 address.";
           type inet:ipv4-address-no-zone;
         }
         leaf macaddr {
+          description
+            "Devices mac address.";
           type yang:phys-address;
         }
         leaf device {
+          description
+            "Device interface.";
           type string;
         }
         leaf connected {
+          description
+            "Status of the connected device.";
           type boolean;
         }
       }
@@ -206,29 +220,45 @@ module terastream-dhcp {
       list dhcp-v6-lease {
         key "duid iaid";
         description
-          "One instance of a DHCP IPv6 lease";
+          "One instance of a DHCP IPv6 lease.";
         leaf duid {
+          description
+            "DHCP Unique Identifier, the DHCPv6-DUID of this host.";
           type string;
         }
         leaf iaid {
+          description
+            "Interface Association Identifier.";
           type uint32;
         }
         leaf interface {
+          description
+            "Used interface.";
           type string;
         }
         leaf hostname {
+          description
+            "Hostname of the device.";
           type string;
         }
         leaf assigned {
+          description
+            "Network to host long.";
           type uint32;
         }
         leaf length {
+          description
+            "length == 128 -> IA_NA, length <= 64 -> IA_PD.";
           type uint8;
         }
         leaf-list ipv6 {
+          description
+            "List of leased IPv6 addresses.";
           type inet:ipv6-address-no-zone;
         }
         leaf valid {
+          description
+            "Time until the lease is valid.";
           type int32;
         }
       }
