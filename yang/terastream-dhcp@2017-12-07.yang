@@ -39,9 +39,9 @@ module terastream-dhcp {
           description
           "The name of the dhcp config section";
         }
-        leaf ignore {
+        leaf enable {
           type boolean;
-          default "false";
+          default "true";
         }
         leaf interface {
           type string;
@@ -112,10 +112,10 @@ module terastream-dhcp {
           type string;
         }
         leaf aftr_v4_local {
-          type string;
+          type inet:ipv4-address-no-zone;
         }
         leaf aftr_v4_remote {
-          type string;
+          type inet:ipv4-address-no-zone;
         }
         leaf reqopts {
           type string;

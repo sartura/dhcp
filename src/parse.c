@@ -49,14 +49,14 @@ cleanup:
     return rc;
 }
 
-int uci_boolean_cb(ctx_t *ctx, char *xpath, char *ucipath, char *value)
+int uci_boolean_reverse_cb(ctx_t *ctx, char *xpath, char *ucipath, char *value)
 {
     int rc = SR_ERR_OK;
 
-    if (string_eq(value, "1") || string_eq(value, "true") || string_eq(value, "on")) {
-        rc = sr_set_item_str(ctx->startup_sess, xpath, "true", SR_EDIT_DEFAULT);
-    } else {
+    if (string_eq(value, "1") || string_eq(value, "true") || string_eq(value, "on") || string_eq(value, "yes")) {
         rc = sr_set_item_str(ctx->startup_sess, xpath, "false", SR_EDIT_DEFAULT);
+    } else {
+        rc = sr_set_item_str(ctx->startup_sess, xpath, "true", SR_EDIT_DEFAULT);
     }
     CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
 
@@ -87,16 +87,16 @@ error:
     return rc;
 }
 
-int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
+int sysrepo_boolean_reverse_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
 {
     int rc = SR_ERR_OK;
 
     /* add/change leafs */
     if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
         if (true == val->data.bool_val) {
-            rc = set_uci_item(ctx->uctx, ucipath, "1");
-        } else {
             rc = set_uci_item(ctx->uctx, ucipath, "0");
+        } else {
+            rc = set_uci_item(ctx->uctx, ucipath, "1");
         }
         UCI_CHECK_RET(&rc, error, "set_uci_item %x", rc);
     } else if (SR_OP_DELETED == op) {
@@ -184,7 +184,7 @@ typedef struct sr_uci_mapping {
 
 static sr_uci_link table_sr_uci[] = {
     {sysrepo_section_cb, uci_section_cb, "dhcp.%s", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']"},
-    {sysrepo_boolean_cb, uci_boolean_cb, "dhcp.%s.ignore", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ignore"},
+    {sysrepo_boolean_reverse_cb, uci_boolean_reverse_cb, "dhcp.%s.ignore", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/enable"},
     {sysrepo_option_cb, uci_option_cb, "dhcp.%s.interface", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface"},
     {sysrepo_option_cb, uci_option_cb, "dhcp.%s.start", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start"},
     {sysrepo_option_cb, uci_option_cb, "dhcp.%s.limit", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/limit"},
