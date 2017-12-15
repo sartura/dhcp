@@ -35,36 +35,59 @@ module terastream-dhcp {
         description
           "The list of dhcp server config sections on the device";
         leaf name {
-          type string;
           description
-          "The name of the dhcp config section";
+            "The name of the dhcp UCI config section";
+          type string;
         }
         leaf enable {
+          description
+            "Specifies whether dnsmasq should ignore this pool
+            if set to false.";
           type boolean;
           default "true";
         }
         leaf interface {
-          type string;
           description
-          "Interface";
+            "Specifies the interface associated with this DHCP
+            address pool; must be one of the interfaces defined
+            in /etc/config/network.";
+          type string;
           mandatory true;
         }
         leaf start {
+          description
+            "Specifies the offset from the network address of the
+            underlying interface to calculate the minimum address
+            that may be leased to clients. It may be greater
+            than 255.";
           type uint8;
           default "100";
         }
         leaf limit {
+          description
+            "Specifies the size of the address pool (e.g. with
+            start=100, limit=150, maximum address will be .249)";
           type uint8;
           default "150";
         }
         leaf leasetime {
+          description
+            "Specifies the lease time of addresses handed out to
+            clients, for example 12h or 30m.";
           type string;
           default "12h";
         }
         leaf dhcpv6 {
+          description
+            "Specifies whether DHCPv6 server should be enabled
+            (server), relayed (relay) or disabled (disabled).";
           type string;
         }
         leaf ra {
+          description
+            "Specifies whether Router Advertisements should be
+            enabled (server), relayed (relay) or
+            disabled (disabled).";
           type string;
         }
         leaf ra_management {
@@ -74,6 +97,16 @@ module terastream-dhcp {
           type string;
         }
         leaf-list dhcp_option {
+          description
+            "The ID dhcp_option here must be with written with an
+            underscore. OpenWrt will translate this to –dhcp-option,
+            with a hyphen, as ultimately used by dnsmasq. Multiple
+            option values can be given for this network-id, with a
+            space between them and the total string between ''. E.g.
+            '26,1470' or 'option:mtu, 1470' that can assign an MTU
+            per DHCP. Your client must accept MTU by DHCP for this to
+            work. Or '3,192.168.1.1 6,192.168.1.1' to give out gateway
+            and dns server addresses.";
           type string;
         }
       }
@@ -83,6 +116,8 @@ module terastream-dhcp {
       description
         "List of domains";
       leaf-list domain {
+        description
+          "DNS domain handed out to DHCP clients";
         type string;
       }
     }
@@ -100,10 +135,15 @@ module terastream-dhcp {
           "The name of the dhcp config section";
         }
         leaf proto {
+          description
+            "Used protocol.";
           type string;
         }
         leaf accept_ra {
-          type string;
+          description
+            "Specifies whether to accept IPv6 Router Advertisements on this interface";
+          type boolean;
+          default "true";
         }
         leaf request_pd {
           type string;
@@ -118,6 +158,8 @@ module terastream-dhcp {
           type inet:ipv4-address-no-zone;
         }
         leaf reqopts {
+          description
+            "Space-separated list of additional DHCP options to request from the server.";
           type string;
         }
       }

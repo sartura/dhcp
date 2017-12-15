@@ -49,6 +49,21 @@ cleanup:
     return rc;
 }
 
+int uci_boolean_cb(ctx_t *ctx, char *xpath, char *ucipath, char *value)
+{
+    int rc = SR_ERR_OK;
+
+    if (string_eq(value, "1") || string_eq(value, "true") || string_eq(value, "on") || string_eq(value, "yes")) {
+        rc = sr_set_item_str(ctx->startup_sess, xpath, "true", SR_EDIT_DEFAULT);
+    } else {
+        rc = sr_set_item_str(ctx->startup_sess, xpath, "false", SR_EDIT_DEFAULT);
+    }
+    CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
+
+cleanup:
+    return rc;
+}
+
 int uci_boolean_reverse_cb(ctx_t *ctx, char *xpath, char *ucipath, char *value)
 {
     int rc = SR_ERR_OK;
@@ -76,6 +91,27 @@ int sysrepo_option_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipat
         rc = set_uci_item(ctx->uctx, ucipath, mem);
         if (mem) {
             free(mem);
+        }
+        UCI_CHECK_RET(&rc, error, "set_uci_item %x", rc);
+    } else if (SR_OP_DELETED == op) {
+        rc = uci_del(ctx, ucipath);
+        UCI_CHECK_RET(&rc, error, "uci_del %d", rc);
+    }
+
+error:
+    return rc;
+}
+
+int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
+{
+    int rc = SR_ERR_OK;
+
+    /* add/change leafs */
+    if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
+        if (true == val->data.bool_val) {
+            rc = set_uci_item(ctx->uctx, ucipath, "1");
+        } else {
+            rc = set_uci_item(ctx->uctx, ucipath, "0");
         }
         UCI_CHECK_RET(&rc, error, "set_uci_item %x", rc);
     } else if (SR_OP_DELETED == op) {
@@ -199,7 +235,7 @@ static sr_uci_link table_sr_uci[] = {
 
     {sysrepo_section_cb, uci_section_cb, "network.%s", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']"},
     {sysrepo_option_cb, uci_option_cb, "network.%s.proto", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/proto"},
-    {sysrepo_option_cb, uci_option_cb, "network.%s.accept_ra", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra"},
+    {sysrepo_boolean_cb, uci_boolean_cb, "network.%s.accept_ra", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra"},
     {sysrepo_option_cb, uci_option_cb, "network.%s.request_pd", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_pd"},
     {sysrepo_option_cb, uci_option_cb, "network.%s.request_na", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_na"},
     {sysrepo_option_cb, uci_option_cb, "network.%s.aftr_v4_local", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_local"},
