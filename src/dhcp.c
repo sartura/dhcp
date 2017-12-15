@@ -74,6 +74,22 @@ static int parse_change(sr_session_ctx_t *session, const char *module_name, ctx_
     }
 
     DBG_MSG("restart dhcp");
+    pid_t pid_dhcp = fork();
+    if (0 == pid_dhcp) {
+        execl("/etc/init.d/odhcpd", "odhcpd", "reload", (char *) NULL);
+        exit(127);
+    } else {
+        waitpid(pid_dhcp, 0, 0);
+    }
+
+    DBG_MSG("restart network");
+    pid_t pid_network = fork();
+    if (0 == pid_network) {
+        execl("/etc/init.d/network", "network", "reload", (char *) NULL);
+        exit(127);
+    } else {
+        waitpid(pid_network, 0, 0);
+    }
 
 error:
     if (NULL != it) {

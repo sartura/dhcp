@@ -183,5 +183,8 @@ RUN chmod +x /usr/libexec/rpcd/dhcp
 COPY ubus.router.network /usr/libexec/rpcd/router.network
 RUN chmod +x /usr/libexec/rpcd/router.network
 
+RUN echo '#!/bin/sh' > /etc/init.d/network && chmod +x /etc/init.d/network
+RUN echo '#!/bin/sh' > /etc/init.d/odhcpd && chmod +x /etc/init.d/odhcpd
+
 COPY supervisord.conf /etc/supervisord.conf
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
