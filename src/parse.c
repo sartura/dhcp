@@ -17,7 +17,7 @@
 #include "parse.h"
 #include "uci.h"
 
-typedef int (*sr_callback)(ctx_t *, sr_change_oper_t, char *, char *, char *, sr_val_t *);
+typedef int (*sr_callback)(ctx_t *, sr_change_oper_t, char *, char *, char *, sr_val_t *, sr_val_t *);
 typedef int (*uci_callback)(ctx_t *, char *, char *, char *);
 
 bool string_eq(char *first, char *second)
@@ -64,7 +64,7 @@ cleanup:
     return rc;
 }
 
-int sysrepo_option_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
+int sysrepo_option_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
 {
     int rc = SR_ERR_OK;
 
@@ -89,7 +89,7 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
+int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
 {
     int rc = SR_ERR_OK;
 
@@ -111,7 +111,7 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_section_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
+int sysrepo_section_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
 {
     int rc = SR_ERR_OK;
 
@@ -135,32 +135,31 @@ uci_error:
     return SR_ERR_INTERNAL;
 }
 
-int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val)
+int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
 {
     int rc = SR_ERR_OK;
-    size_t count = 0;
-    sr_val_t *values = NULL;
     struct uci_ptr ptr = {};
+    // TODO use malloc
     char set_path[XPATH_MAX_LEN] = {0};
 
-    rc = uci_lookup_ptr(ctx->uctx, &ptr, (char *) ucipath, true);
-    UCI_CHECK_RET(rc, uci_error, "uci_lookup_ptr %d, path %s", rc, ucipath);
-    if (NULL != ptr.o) {
-        /* remove the UCI list first */
-        rc = uci_delete(ctx->uctx, &ptr);
-        UCI_CHECK_RET(rc, uci_error, "uci_delete %d, path %s", rc, ucipath);
+    if (SR_OP_DELETED == op || SR_OP_MODIFIED == op) {
+        sprintf(set_path, "%s%s%s", ucipath, "=", old->data.string_val);
+
+        rc = uci_lookup_ptr(ctx->uctx, &ptr, set_path, true);
+        UCI_CHECK_RET(rc, uci_error, "lookup_pointer %d %s", rc, set_path);
+
+        rc = uci_del_list(ctx->uctx, &ptr);
+        UCI_CHECK_RET(rc, uci_error, "uci_set %d %s", rc, set_path);
+
+        rc = uci_save(ctx->uctx, ptr.p);
+        UCI_CHECK_RET(rc, uci_error, "uci_save %d %s", rc, set_path);
+
+        rc = uci_commit(ctx->uctx, &(ptr.p), false);
+        UCI_CHECK_RET(rc, uci_error, "uci_commit %d %s", rc, set_path);
     }
 
-    if (SR_OP_DELETED == op) {
-        return rc;
-    }
-
-    /* get all list instances */
-    rc = sr_get_items(ctx->sess, xpath, &values, &count);
-    CHECK_RET(rc, cleanup, "failed sr_get_items: %s", sr_strerror(rc));
-
-    for (size_t i = 0; i < count; i++) {
-        sprintf(set_path, "%s%s%s", ucipath, "=", values[i].data.string_val);
+    if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
+        sprintf(set_path, "%s%s%s", ucipath, "=", val->data.string_val);
 
         rc = uci_lookup_ptr(ctx->uctx, &ptr, set_path, true);
         UCI_CHECK_RET(rc, uci_error, "lookup_pointer %d %s", rc, set_path);
@@ -175,15 +174,8 @@ int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath,
         UCI_CHECK_RET(rc, uci_error, "uci_commit %d %s", rc, set_path);
     }
 
-cleanup:
-    if (NULL != values && 0 != count) {
-        sr_free_values(values, count);
-    }
     return rc;
 uci_error:
-    if (NULL != values && 0 != count) {
-        sr_free_values(values, count);
-    }
     return SR_ERR_INTERNAL;
 }
 
@@ -268,7 +260,7 @@ int sysrepo_to_uci(ctx_t *ctx, sr_change_oper_t op, sr_val_t *old_val, sr_val_t 
         snprintf(xpath, XPATH_MAX_LEN, table_sr_uci[i].xpath, key);
         snprintf(ucipath, XPATH_MAX_LEN, table_sr_uci[i].ucipath, key);
         if (string_eq(xpath, orig_xpath)) {
-            rc = table_sr_uci[i].sr_callback(ctx, op, xpath, ucipath, key, new_val);
+            rc = table_sr_uci[i].sr_callback(ctx, op, xpath, ucipath, key, new_val, old_val);
             CHECK_RET(rc, error, "failed sysrepo operation %s", sr_strerror(rc));
         }
     }
