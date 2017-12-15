@@ -79,6 +79,14 @@ module terastream-dhcp {
       }
     }
 
+    container domains {
+      description
+        "List of domains";
+      leaf-list domain {
+        type string;
+      }
+    }
+
     container dhcp-clients {
       description
         "Data nodes for the operational state of dhcp clients";

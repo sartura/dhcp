@@ -195,6 +195,8 @@ static sr_uci_link table_sr_uci[] = {
     {sysrepo_option_cb, uci_option_cb, "dhcp.%s.sntp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp"},
     {sysrepo_list_cb, uci_option_cb, "dhcp.%s.dhcp_option", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option"},
 
+    {sysrepo_list_cb, uci_option_cb, "dhcp.@domain[0].name", "/terastream-dhcp:domains/domain"},
+
     {sysrepo_section_cb, uci_section_cb, "network.%s", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']"},
     {sysrepo_option_cb, uci_option_cb, "network.%s.proto", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/proto"},
     {sysrepo_option_cb, uci_option_cb, "network.%s.accept_ra", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra"},
@@ -292,6 +294,34 @@ static int init_sysrepo_data(ctx_t *ctx)
                 struct uci_option *o = uci_to_option(el);
                 char uci_element[MAX_UCI_PATH] = {0};
                 snprintf(uci_element, MAX_UCI_PATH, "%s.%s.%s", ctx->config_file_dhcp, s->e.name, o->e.name);
+
+                const int n_mappings = ARR_SIZE(table_sr_uci);
+                for (int i = 0; i < n_mappings; i++) {
+                    snprintf(xpath, XPATH_MAX_LEN, table_sr_uci[i].xpath, s->e.name);
+                    snprintf(ucipath, XPATH_MAX_LEN, table_sr_uci[i].ucipath, s->e.name);
+                    if (true != string_eq(ucipath, uci_element)) {
+                        continue;
+                    }
+
+                    if (UCI_TYPE_STRING == o->type) {
+                        rc = table_sr_uci[i].uci_callback(ctx, xpath, ucipath, o->v.string);
+                        CHECK_RET(rc, cleanup, "failed sysrepo operation %s", sr_strerror(rc));
+                    } else {
+                        struct uci_element *list_el;
+                        uci_foreach_element(&o->v.list, list_el)
+                        {
+                            rc = table_sr_uci[i].uci_callback(ctx, xpath, ucipath, list_el->name);
+                            CHECK_RET(rc, cleanup, "failed sysrepo operation %s", sr_strerror(rc));
+                        }
+                    }
+                }
+            }
+        } else if (string_eq(s->type, "domain")) {
+            uci_foreach_element(&s->options, el)
+            {
+                struct uci_option *o = uci_to_option(el);
+                char uci_element[MAX_UCI_PATH] = {0};
+                snprintf(uci_element, MAX_UCI_PATH, "%s.@domain[0].%s", ctx->config_file_dhcp, o->e.name);
 
                 const int n_mappings = ARR_SIZE(table_sr_uci);
                 for (int i = 0; i < n_mappings; i++) {
