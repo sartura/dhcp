@@ -77,16 +77,14 @@ int sysrepo_option_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipat
         if (mem) {
             free(mem);
         }
-        UCI_CHECK_RET(rc, uci_error, "set_uci_item %x", rc);
+        UCI_CHECK_RET(&rc, error, "set_uci_item %x", rc);
     } else if (SR_OP_DELETED == op) {
         rc = uci_del(ctx, ucipath);
-        UCI_CHECK_RET(rc, uci_error, "uci_del %d", rc);
+        UCI_CHECK_RET(&rc, error, "uci_del %d", rc);
     }
 
 error:
     return rc;
-uci_error:
-    return SR_ERR_INTERNAL;
 }
 
 int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
@@ -100,15 +98,14 @@ int sysrepo_boolean_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipa
         } else {
             rc = set_uci_item(ctx->uctx, ucipath, "0");
         }
-        UCI_CHECK_RET(rc, uci_error, "set_uci_item %x", rc);
+        UCI_CHECK_RET(&rc, error, "set_uci_item %x", rc);
     } else if (SR_OP_DELETED == op) {
         rc = uci_del(ctx, ucipath);
-        UCI_CHECK_RET(rc, uci_error, "uci_del %d", rc);
+        UCI_CHECK_RET(&rc, error, "uci_del %d", rc);
     }
 
+error:
     return rc;
-uci_error:
-    return SR_ERR_INTERNAL;
 }
 
 int sysrepo_section_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
@@ -124,15 +121,14 @@ int sysrepo_section_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipa
             sprintf(ucipath, "%s.%s=%s", ctx->config_file_network, key, "interface");
         }
         rc = set_uci_section(ctx, ucipath);
-        UCI_CHECK_RET(rc, uci_error, "set_uci_item %x", rc);
+        UCI_CHECK_RET(&rc, error, "set_uci_item %x", rc);
     } else if (SR_OP_DELETED == op) {
         rc = uci_del(ctx, ucipath);
-        UCI_CHECK_RET(rc, uci_error, "uci_del %d", rc);
+        UCI_CHECK_RET(&rc, error, "uci_del %d", rc);
     }
 
+error:
     return rc;
-uci_error:
-    return SR_ERR_INTERNAL;
 }
 
 int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath, char *key, sr_val_t *val, sr_val_t *old)
@@ -146,37 +142,36 @@ int sysrepo_list_cb(ctx_t *ctx, sr_change_oper_t op, char *xpath, char *ucipath,
         sprintf(set_path, "%s%s%s", ucipath, "=", old->data.string_val);
 
         rc = uci_lookup_ptr(ctx->uctx, &ptr, set_path, true);
-        UCI_CHECK_RET(rc, uci_error, "lookup_pointer %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "lookup_pointer %d %s", rc, set_path);
 
         rc = uci_del_list(ctx->uctx, &ptr);
-        UCI_CHECK_RET(rc, uci_error, "uci_set %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "uci_set %d %s", rc, set_path);
 
         rc = uci_save(ctx->uctx, ptr.p);
-        UCI_CHECK_RET(rc, uci_error, "uci_save %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "uci_save %d %s", rc, set_path);
 
         rc = uci_commit(ctx->uctx, &(ptr.p), false);
-        UCI_CHECK_RET(rc, uci_error, "uci_commit %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "uci_commit %d %s", rc, set_path);
     }
 
     if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
         sprintf(set_path, "%s%s%s", ucipath, "=", val->data.string_val);
 
         rc = uci_lookup_ptr(ctx->uctx, &ptr, set_path, true);
-        UCI_CHECK_RET(rc, uci_error, "lookup_pointer %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "lookup_pointer %d %s", rc, set_path);
 
         rc = uci_add_list(ctx->uctx, &ptr);
-        UCI_CHECK_RET(rc, uci_error, "uci_set %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "uci_set %d %s", rc, set_path);
 
         rc = uci_save(ctx->uctx, ptr.p);
-        UCI_CHECK_RET(rc, uci_error, "uci_save %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "uci_save %d %s", rc, set_path);
 
         rc = uci_commit(ctx->uctx, &(ptr.p), false);
-        UCI_CHECK_RET(rc, uci_error, "uci_commit %d %s", rc, set_path);
+        UCI_CHECK_RET(&rc, error, "uci_commit %d %s", rc, set_path);
     }
 
+error:
     return rc;
-uci_error:
-    return SR_ERR_INTERNAL;
 }
 
 /* Configuration part of the plugin. */
