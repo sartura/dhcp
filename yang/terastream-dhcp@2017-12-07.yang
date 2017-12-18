@@ -109,6 +109,43 @@ module terastream-dhcp {
             and dns server addresses.";
           type string;
         }
+        leaf dynamicdhcp {
+          description
+            "Dynamically allocate client addresses, if set to 0 only
+            clients present in the ethers files are served.";
+          type boolean;
+          default "true";
+        }
+        leaf force {
+          description
+            "Forces DHCP serving on the specified interface even if
+            another DHCP server is detected on the same network segment.";
+          type boolean;
+          default "false";
+        }
+        leaf ndp {
+          description
+            "Specifies whether NDP should be relayed relay or disabled
+            none.";
+          type string;
+        }
+        leaf master {
+          description
+            "Specifies whether DHCPv6, RA and NDP in relay mode is a
+            master interface or not.";
+          type boolean;
+          default "false";
+        }
+        leaf netwokid {
+          description
+            "The dhcp functionality defined in the dhcp section islimited
+            to the interface indicated here through its network-id. In
+            case omitted the system tries to know the network-id via the
+            'interface' setting in this dhcp section, through consultation
+            of /etc/config/network. Some IDs get assigned dynamically, are
+            not provided by network, but still can be set here.";
+          type string;
+        }
       }
     }
 

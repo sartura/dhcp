@@ -230,6 +230,11 @@ static sr_uci_link table_sr_uci[] = {
     {sysrepo_option_cb, uci_option_cb, "dhcp.%s.ra_management", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra_management"},
     {sysrepo_option_cb, uci_option_cb, "dhcp.%s.sntp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp"},
     {sysrepo_list_cb, uci_option_cb, "dhcp.%s.dhcp_option", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option"},
+    {sysrepo_boolean_cb, uci_boolean_cb, "dhcp.%s.dynamicdhcp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dynamicdhcp"},
+    {sysrepo_boolean_cb, uci_boolean_cb, "dhcp.%s.force", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/force"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.ndp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ndp"},
+    {sysrepo_boolean_cb, uci_boolean_cb, "dhcp.%s.master", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/master"},
+    {sysrepo_option_cb, uci_option_cb, "dhcp.%s.networkid", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/networkid"},
 
     {sysrepo_list_cb, uci_option_cb, "dhcp.@domain[0].name", "/terastream-dhcp:domains/domain"},
 
