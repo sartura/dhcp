@@ -27,6 +27,26 @@ module terastream-dhcp {
             "Version 0.1.0";
     }
 
+    typedef server-state {
+      type enumeration {
+        enum "server" {
+          description
+            "Enable the server.";
+        }
+        enum "relay" {
+          description
+            "Relay the server.";
+        }
+        enum "disabled" {
+          description
+            "Disable the server.";
+        }
+      }
+      description
+        "Specifies the server mode.";
+    }
+
+
     container dhcp-servers {
       description
         "Data nodes for the operational state of dhcp server";
@@ -81,14 +101,14 @@ module terastream-dhcp {
           description
             "Specifies whether DHCPv6 server should be enabled
             (server), relayed (relay) or disabled (disabled).";
-          type string;
+          type server-state;
         }
         leaf ra {
           description
             "Specifies whether Router Advertisements should be
             enabled (server), relayed (relay) or
             disabled (disabled).";
-          type string;
+          type server-state;
         }
         leaf ra_management {
           type string;
@@ -127,7 +147,10 @@ module terastream-dhcp {
           description
             "Specifies whether NDP should be relayed relay or disabled
             none.";
-          type string;
+          type enumeration {
+            enum "relay";
+            enum "none";
+          }
         }
         leaf master {
           description
