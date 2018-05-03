@@ -159,7 +159,7 @@ module terastream-dhcp {
           type boolean;
           default "false";
         }
-        leaf netwokid {
+        leaf networkid {
           description
             "The dhcp functionality defined in the dhcp section islimited
             to the interface indicated here through its network-id. In
