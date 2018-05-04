@@ -4,12 +4,10 @@ project(sysrepo-plugin-dt-dhcp)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
 set(PLUGIN 0 CACHE BOOL "Build a plugin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Wall")
 
 set(SOURCES
     src/dhcp.c
-    src/uci.c
     src/parse.c)
 
 if(PLUGIN)
@@ -43,4 +41,12 @@ FIND_PACKAGE(LIBUBUS REQUIRED)
 INCLUDE_DIRECTORIES(${LIBUBUS_INCLUDE_DIR})
 TARGET_LINK_LIBRARIES(${CMAKE_PROJECT_NAME} ${LIBUBUS_LIBRARIES})
 
-TARGET_LINK_LIBRARIES(${CMAKE_PROJECT_NAME} json-c)
+# dependencies - sr_uci
+FIND_PACKAGE(SR_UCI REQUIRED)
+INCLUDE_DIRECTORIES(${SR_UCI_INCLUDE_DIR})
+TARGET_LINK_LIBRARIES(${CMAKE_PROJECT_NAME} ${SR_UCI_LIBRARIES})
+
+# dependencies - json-c
+find_package(JSON-C REQUIRED)
+include_directories(${JSON-C_INCLUDE_DIR})
+target_link_libraries(${CMAKE_PROJECT_NAME} json-c)

@@ -22,19 +22,15 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-#include "dhcp.h"
+#include <sr_uci.h>
 
-int sync_datastores(ctx_t *ctx);
-int load_startup_datastore(ctx_t *ctx);
-int sysrepo_to_uci(ctx_t *ctx, sr_change_oper_t op, sr_val_t *old_val, sr_val_t *new_val, sr_notif_event_t event);
+int sync_datastores(sr_ctx_t *ctx);
+int fill_dhcp_v6_data(sr_ctx_t *ctx, char *xpath, sr_val_t **values, size_t *values_cnt);
+int fill_dhcp_v4_data(sr_ctx_t *ctx, char *xpath, sr_val_t **values, size_t *values_cnt);
 
-int fill_dhcp_v6_data(ctx_t *ctx, char *xpath, sr_val_t **values, size_t *values_cnt);
-int fill_dhcp_v4_data(ctx_t *ctx, char *xpath, sr_val_t **values, size_t *values_cnt);
+bool has_dhcpv6_interface(sr_ctx_t *, char *, char *, sr_edit_flag_t, void *);
+int sr_list_option_cb(sr_ctx_t *, sr_change_oper_t, sr_val_t *, sr_val_t *, char *, char *);
 
-typedef struct ubus_ctx_s {
-	ctx_t *ctx;
-	sr_val_t **values;
-	size_t *values_cnt;
-} ubus_ctx_t;
+extern sr_uci_mapping_t table_sr_uci[];
 
 #endif /* PARSE_H */

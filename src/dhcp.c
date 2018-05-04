@@ -5,20 +5,48 @@
 
 #include <sysrepo.h>
 #include <sysrepo/plugins.h>
+#include <sr_uci.h>
 
-#include "common.h"
-#include "dhcp.h"
 #include "parse.h"
 
 /* name of the uci config file. */
 static const char *config_file_dhcp = "dhcp";
-static const char *config_file_network = "network";
 static const char *yang_model = "terastream-dhcp";
+
+sr_uci_mapping_t table_sr_uci[] = {
+    {sr_section_cb, uci_section_cb, NULL, "dhcp.%s", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']"},
+    {sr_boolean_reverse_cb, uci_boolean_reverse_cb, NULL, "dhcp.%s.ignore", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/enable"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.interface", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.start", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.limit", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/limit"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.leasetime", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/leasetime"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.dhcpv6", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcpv6"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.ra", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.ra_management", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra_management"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.sntp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp"},
+    {sr_list_cb, uci_list_cb, NULL, "dhcp.%s.dhcp_option", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option"},
+    {sr_boolean_cb, uci_boolean_cb, NULL, "dhcp.%s.dynamicdhcp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dynamicdhcp"},
+    {sr_boolean_cb, uci_boolean_cb, NULL, "dhcp.%s.force", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/force"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.ndp", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ndp"},
+    {sr_boolean_cb, uci_boolean_cb, NULL, "dhcp.%s.master", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/master"},
+    {sr_option_cb, uci_option_cb, NULL, "dhcp.%s.networkid", "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/networkid"},
+
+    {sr_list_cb, uci_list_cb, NULL, "dhcp.@domain[0].name", "/terastream-dhcp:domains/domain"},
+
+    {sr_section_cb, uci_section_cb, has_dhcpv6_interface, "network.%s", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']"},
+    {sr_option_cb, uci_option_cb, has_dhcpv6_interface, "network.%s.proto", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/proto"},
+    {sr_boolean_cb, uci_boolean_cb, has_dhcpv6_interface, "network.%s.accept_ra", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra"},
+    {sr_option_cb, uci_option_cb, has_dhcpv6_interface, "network.%s.request_pd", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_pd"},
+    {sr_option_cb, uci_option_cb, has_dhcpv6_interface, "network.%s.request_na", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_na"},
+    {sr_option_cb, uci_option_cb, has_dhcpv6_interface, "network.%s.aftr_v4_local", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_local"},
+    {sr_option_cb, uci_option_cb, has_dhcpv6_interface, "network.%s.aftr_v4_remote", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_remote"},
+    {sr_option_cb, uci_option_cb, has_dhcpv6_interface, "network.%s.reqopts", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/reqopts"},
+};
 
 static int dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
 {
     int rc = SR_ERR_OK;
-    ctx_t *ctx = private_ctx;
+    sr_ctx_t *ctx = private_ctx;
 
     rc = fill_dhcp_v4_data(ctx, (char *) xpath, values, values_cnt);
     if (SR_ERR_OK != rc) {
@@ -34,7 +62,7 @@ error:
 static int dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
 {
     int rc = SR_ERR_OK;
-    ctx_t *ctx = private_ctx;
+    sr_ctx_t *ctx = private_ctx;
 
     rc = fill_dhcp_v6_data(ctx, (char *) xpath, values, values_cnt);
     if (SR_ERR_OK != rc) {
@@ -47,18 +75,18 @@ error:
     return rc;
 }
 
-static int parse_change(sr_session_ctx_t *session, const char *module_name, ctx_t *ctx, sr_notif_event_t event)
+static int parse_change(sr_session_ctx_t *session, const char *module_name, sr_ctx_t *ctx, sr_notif_event_t event)
 {
     sr_change_iter_t *it = NULL;
     int rc = SR_ERR_OK;
     sr_change_oper_t oper;
     sr_val_t *old_value = NULL;
     sr_val_t *new_value = NULL;
-    char xpath[XPATH_MAX_LEN] = {
+    char xpath[100] = {
         0,
     };
 
-    snprintf(xpath, XPATH_MAX_LEN, "/%s:*", module_name);
+    snprintf(xpath, 100, "/%s:*", module_name);
 
     rc = sr_get_changes_iter(session, xpath, &it);
     if (SR_ERR_OK != rc) {
@@ -101,7 +129,7 @@ error:
 static int module_change_cb(sr_session_ctx_t *session, const char *module_name, sr_notif_event_t event, void *private_ctx)
 {
     int rc = SR_ERR_OK;
-    ctx_t *ctx = private_ctx;
+    sr_ctx_t *ctx = private_ctx;
     INF("%s configuration has changed.", yang_model);
 
     ctx->sess = session;
@@ -131,15 +159,16 @@ int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
 
     /* INF("sr_plugin_init_cb for sysrepo-plugin-dt-network"); */
 
-    ctx_t *ctx = calloc(1, sizeof(*ctx));
+    sr_ctx_t *ctx = calloc(1, sizeof(*ctx));
     ctx->sub = NULL;
     ctx->sess = session;
     ctx->startup_conn = NULL;
     ctx->startup_sess = NULL;
     ctx->yang_model = yang_model;
-    ctx->config_file_dhcp = config_file_dhcp;
-    ctx->config_file_network = config_file_network;
+    ctx->config_file = config_file_dhcp;
     *private_ctx = ctx;
+    ctx->map = table_sr_uci;
+    ctx->map_size = sizeof(table_sr_uci) / sizeof(table_sr_uci[0]);
 
     /* Allocate UCI context for uci files. */
     ctx->uctx = uci_alloc_context();
@@ -182,29 +211,11 @@ error:
 void sr_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_ctx)
 {
     INF("Plugin cleanup called, private_ctx is %s available.", private_ctx ? "" : "not");
-    if (!private_ctx)
-        return;
-
-    ctx_t *ctx = private_ctx;
-    if (NULL == ctx) {
+    if (!private_ctx) {
         return;
     }
-    /* clean startup datastore */
-    if (NULL != ctx->startup_sess) {
-        sr_session_stop(ctx->startup_sess);
-    }
-    if (NULL != ctx->startup_conn) {
-        sr_disconnect(ctx->startup_conn);
-    }
-    if (NULL != ctx->sub) {
-        sr_unsubscribe(session, ctx->sub);
-    }
-    if (ctx->uctx) {
-        uci_free_context(ctx->uctx);
-    }
-    free(ctx);
 
-    DBG_MSG("Plugin cleaned-up successfully");
+    sr_uci_free_context((sr_ctx_t *) private_ctx);
 }
 
 #ifndef PLUGIN
