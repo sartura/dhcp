@@ -5,6 +5,7 @@ project(sysrepo-plugin-dt-dhcp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
 set(PLUGIN 0 CACHE BOOL "Build a plugin")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu11 -Wall")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
 set(SOURCES
     src/dhcp.c
