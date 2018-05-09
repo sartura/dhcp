@@ -431,8 +431,8 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                         snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/valid", duid, iaid);
                         rc = sr_val_set_xpath(&sr_val[counter], xpath);
                         CHECK_RET(rc, cleanup, "failed sr_val_set_xpath: %s", sr_strerror(rc));
-                        (&sr_val[counter])->data.int32_val = number;
-                        (&sr_val[counter])->type = SR_INT32_T;
+                        (&sr_val[counter])->data.uint32_val = number;
+                        (&sr_val[counter])->type = SR_UINT32_T;
                         counter++;
 
                         json_object_object_get_ex(val, "ipv6", &v);
