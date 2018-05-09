@@ -16,6 +16,185 @@
 
 #include "parse.h"
 
+static double parse_leasetime(char *val) {
+    char *endptr = NULL;
+    double time = strcmp(val, "infinite") ? strtod(val, &endptr) : UINT32_MAX;
+
+    if (time && endptr && endptr[0]) {
+        if (endptr[0] == 's') {
+            time *= 1;
+        } else if (endptr[0] == 'm') {
+            time *= 60;
+        } else if (endptr[0] == 'h') {
+            time *= 3600;
+        } else if (endptr[0] == 'd') {
+            time *= 24 * 3600;
+        } else if (endptr[0] == 'w') {
+            time *= 7 * 24 * 3600;
+        } else {
+            goto cleanup;
+        }
+    }
+
+    if (time < 60) {
+        time = 60;
+    }
+
+    return time;
+
+cleanup:
+    return -1;
+}
+
+/* transform leasetime from seconds to <number>s */
+int sr_leasetime_cb(sr_ctx_t *ctx, sr_change_oper_t op, sr_val_t *old_val, sr_val_t *new_val, char *xpath, char *ucipath) {
+    int rc = SR_ERR_OK;
+
+    /* add/change leafs */
+    if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
+        char *mem = sr_val_to_str(new_val);
+        CHECK_NULL(mem, &rc, cleanup, "sr_print_val %s", sr_strerror(rc));
+        int len = strlen(mem) + 2;
+        char *leasetime = malloc(sizeof(char) * len);
+        CHECK_NULL_MSG(leasetime, &rc, cleanup, "malloc failed");
+        snprintf(leasetime, len, "%ss", mem);
+        rc = set_uci_item(ctx->uctx, ucipath, leasetime);
+        free(leasetime);
+        free(mem);
+        CHECK_RET(rc, cleanup, "set_uci_item %x", rc);
+    } else if (SR_OP_DELETED == op) {
+        rc = uci_del(ctx, ucipath);
+        CHECK_RET(rc, cleanup, "uci_del %d", rc);
+    }
+
+cleanup:
+    return rc;
+}
+
+/* transform leasetime 12h to seconds */
+int uci_leasetime_cb(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_flag_t flag, void *data) {
+    int rc = SR_ERR_OK;
+    char *uci_val = NULL;
+
+    rc = get_uci_item(ctx->uctx, ucipath, &uci_val);
+    if (UCI_OK == rc) {
+        char leasetime[12];
+        snprintf(leasetime, 12, "%.0lf", parse_leasetime(uci_val));
+        rc = sr_set_item_str(ctx->startup_sess, xpath, leasetime, flag);
+        free(uci_val);
+        CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
+    }
+
+cleanup:
+    return rc;
+}
+
+/* transform sysrepo leaf stop to uci option limit, limit = stop - start + 1 */
+int sr_stop_cb(sr_ctx_t *ctx, sr_change_oper_t op, sr_val_t *old_val, sr_val_t *new_val, char *xpath, char *ucipath) {
+    int rc = SR_ERR_OK;
+    sr_val_t *value = NULL;
+    char *limit_xpath = NULL;
+    char *key = NULL;
+
+    /* add/change leafs */
+    if (SR_OP_CREATED == op || SR_OP_MODIFIED == op) {
+        /* get start uci option and convert it to string */
+        key = get_key_value(xpath);
+        CHECK_NULL(key, &rc, cleanup, "could not extract key from %s", xpath);
+
+        limit_xpath = new_path_key("/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start", key);
+        CHECK_NULL_MSG(limit_xpath, &rc, cleanup, "failed to generate path");
+
+        rc = sr_get_item(ctx->sess, limit_xpath, &value);
+        CHECK_RET(rc, cleanup, "failed sr_get_item %s", sr_strerror(rc));
+        unsigned long limit = new_val->data.uint32_val - value->data.uint32_val + 1;
+        char limit_string[12];
+        snprintf(limit_string, 12, "%lu", limit);
+
+        rc = set_uci_item(ctx->uctx, ucipath, limit_string);
+        CHECK_RET(rc, cleanup, "set_uci_item %x", rc);
+    } else if (SR_OP_DELETED == op) {
+        rc = uci_del(ctx, ucipath);
+        CHECK_RET(rc, cleanup, "uci_del %d", rc);
+    }
+
+cleanup:
+    del_path_key(&limit_xpath);
+    if (NULL != value) {
+        sr_free_val(value);
+    }
+    if (NULL != key) {
+        free(key);
+    }
+    return rc;
+}
+
+/* transform uci option limit to stop leaf, stop = start + limit - 1*/
+int uci_stop_cb(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_flag_t flag, void *data) {
+    int rc = SR_ERR_OK;
+    int uci_ret = UCI_OK;
+    char *key = NULL;
+    char *uci_val = NULL;
+    char *start_val = NULL;
+    char *start_ucipath = NULL;
+
+    /* get start uci option and convert it to string */
+    key = get_key_value(xpath);
+    CHECK_NULL(key, &rc, cleanup, "could not extract key from %s", xpath);
+
+    start_ucipath = new_path_key("dhcp.%s.start", key);
+    CHECK_NULL_MSG(start_ucipath, &rc, cleanup, "failed to generate path");
+
+    char *endptr = NULL;
+    unsigned long start;
+    uci_ret = get_uci_item(ctx->uctx, start_ucipath, &start_val);
+    if (UCI_ERR_NOTFOUND == uci_ret) {
+        start = 100;
+    } else if (UCI_OK == uci_ret) {
+        UCI_CHECK_RET(uci_ret, &rc, cleanup, "get_uci_item %d %s", uci_ret, start_ucipath);
+        start = strtoul(start_val, &endptr, 10);
+        if (*endptr || start > UINT8_MAX) {
+            rc = SR_ERR_INTERNAL;
+            goto cleanup;
+        }
+    } else {
+        goto cleanup;
+    }
+
+    /* get limit uci option and convert it to string */
+    uci_ret = get_uci_item(ctx->uctx, ucipath, &uci_val);
+    if (UCI_OK != uci_ret) {
+        goto cleanup;
+    }
+    UCI_CHECK_RET(uci_ret, &rc, cleanup, "get_uci_item %d %s", uci_ret, ucipath);
+
+    unsigned long limit = strtoul(uci_val, &endptr, 10);
+    if (*endptr || limit > UINT8_MAX) {
+        rc = SR_ERR_INTERNAL;
+        goto cleanup;
+    }
+
+    unsigned long stop = start + limit - 1;
+    char stop_string[12];
+    snprintf(stop_string, 12, "%lu", stop);
+
+    rc = sr_set_item_str(ctx->startup_sess, xpath, stop_string, flag);
+    CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
+
+cleanup:
+    del_path_key(&start_ucipath);
+    if (NULL != key) {
+        free(key);
+    }
+    if (NULL != start_val) {
+        free(start_val);
+    }
+    if (NULL != uci_val) {
+        free(uci_val);
+    }
+    return rc;
+}
+
 /* parse only interfaces with option proto 'dhcpv6' */
 bool has_dhcpv6_interface(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_flag_t flag, void *data) {
     int rc = SR_ERR_OK;

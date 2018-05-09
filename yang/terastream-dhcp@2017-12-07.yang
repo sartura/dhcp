@@ -80,22 +80,25 @@ module terastream-dhcp {
             underlying interface to calculate the minimum address
             that may be leased to clients. It may be greater
             than 255.";
-          type uint8;
+          type uint32;
           default "100";
         }
-        leaf limit {
+        leaf stop {
+          must ". >= ../start";
           description
-            "Specifies the size of the address pool (e.g. with
-            start=100, limit=150, maximum address will be .249)";
-          type uint8;
-          default "150";
+            "Specifies the max address pool.";
+          type uint32;
+          default "250";
         }
         leaf leasetime {
           description
             "Specifies the lease time of addresses handed out to
-            clients, for example 12h or 30m.";
-          type string;
-          default "12h";
+            clients, for example 12h or 30m. Default is 12 hours";
+          type uint32 {
+            range "60 .. max";
+          }
+          default "43200";
+          units seconds;
         }
         leaf dhcpv6 {
           description
@@ -111,7 +114,19 @@ module terastream-dhcp {
           type server-state;
         }
         leaf ra_management {
-          type string;
+          description
+            "RA management mode, default 1:
+            0: no M-Flag but A-Flag
+            1: both M and A
+            2: M but not A
+            A-Flag: tell client to use auto-configuration i.e. SLAAC
+            M-Flag: notify client that DHCPv6 server is available";
+          type enumeration {
+            enum 0;
+            enum 1;
+            enum 2;
+          }
+          default 1;
         }
         leaf sntp {
           type string;
@@ -318,8 +333,9 @@ module terastream-dhcp {
         }
         leaf valid {
           description
-            "Time until the lease is valid.";
-          type int32;
+            "Remaining valid lifetime.";
+          type uint32;
+          units seconds;
         }
       }
     }
