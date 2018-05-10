@@ -196,11 +196,15 @@ cleanup:
 }
 
 /* parse only interfaces with option proto 'dhcpv6' */
-bool has_dhcpv6_interface(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_flag_t flag, void *data) {
+int uci_dhcpv6_option_cb(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_flag_t flag, void *data) {
     int rc = SR_ERR_OK;
     char *uci_val = NULL, *if_ucipath = NULL;
-    char *key = (char *) data;
     bool check_passed = false;
+    char *key = NULL;
+
+    /* get start uci option and convert it to string */
+    key = get_key_value(xpath);
+    CHECK_NULL(key, &rc, cleanup, "could not extract key from %s", xpath);
 
     int len = strlen(key) + 18;
     if_ucipath = malloc(sizeof(char) * len);
@@ -213,13 +217,50 @@ bool has_dhcpv6_interface(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_fla
     }
 
 cleanup:
+    if (NULL != key) {
+        free(key);
+    }
     if (NULL != uci_val) {
         free(uci_val);
     }
     if (NULL != if_ucipath) {
         free(if_ucipath);
     }
-    return check_passed;
+    return true == check_passed ? uci_option_cb(ctx, xpath, ucipath, flag, data) : SR_ERR_OK;
+}
+
+/* parse only interfaces with option proto 'dhcpv6' */
+int uci_dhcpv6_boolean_cb(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_flag_t flag, void *data) {
+    int rc = SR_ERR_OK;
+    char *uci_val = NULL, *if_ucipath = NULL;
+    bool check_passed = false;
+    char *key = NULL;
+
+    /* get start uci option and convert it to string */
+    key = get_key_value(xpath);
+    CHECK_NULL(key, &rc, cleanup, "could not extract key from %s", xpath);
+
+    int len = strlen(key) + 18;
+    if_ucipath = malloc(sizeof(char) * len);
+    CHECK_NULL_MSG(if_ucipath, &rc, cleanup, "malloc failed");
+    snprintf(if_ucipath, len, "network.%s.proto", key);
+
+    rc = get_uci_item(ctx->uctx, if_ucipath, &uci_val);
+    if (SR_ERR_OK == rc && 0 == strcmp(uci_val, "dhcpv6")) {
+        check_passed= true;
+    }
+
+cleanup:
+    if (NULL != key) {
+        free(key);
+    }
+    if (NULL != uci_val) {
+        free(uci_val);
+    }
+    if (NULL != if_ucipath) {
+        free(if_ucipath);
+    }
+    return true == check_passed ? uci_boolean_cb(ctx, xpath, ucipath, flag, data) : SR_ERR_OK;
 }
 
 /* trnasform uci list to sysrepo leaf */
