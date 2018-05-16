@@ -489,6 +489,10 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                             CHECK_RET(rc, cleanup, "failed sr_val_set_str_data: %s", sr_strerror(rc));
                             counter++;
                         }
+                        if (NULL != xpath) {
+                            free(xpath);
+                            xpath = NULL;
+                        }
                     }
                 }
             }
