@@ -394,8 +394,14 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                         l = json_object_array_get_idx(tmp_device_val, device_element);
                         counter = counter + 4;
                         json_object_object_get_ex(l, "ipv6", &i);
-                        CHECK_NULL_MSG(i, &rc, cleanup, "could not get json object ipv6");
-                        counter = counter + json_object_array_length(i);
+                        if (NULL != i) {
+                            CHECK_NULL_MSG(i, &rc, cleanup, "could not get json object ipv6");
+                            counter = counter + json_object_array_length(i);
+                        } else {
+                            json_object_object_get_ex(l, "ipv6-prefix", &i);
+                            CHECK_NULL_MSG(i, &rc, cleanup, "could not get json object ipv6-prefix");
+                            counter = counter + json_object_array_length(i);
+                        }
                     }
                 }
             }
@@ -454,18 +460,6 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                         (&sr_val[counter])->type = SR_UINT32_T;
                         counter++;
 
-                        json_object_object_get_ex(val, "length", &v);
-                        CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object length");
-                        string_number = (char *) json_object_get_string(v);
-                        CHECK_NULL_MSG(string_number, &rc, cleanup, "could not get get string");
-                        number = strtol(string_number, &string_number, 10);
-                        snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/length", duid, iaid);
-                        rc = sr_val_set_xpath(&sr_val[counter], xpath);
-                        CHECK_RET(rc, cleanup, "failed sr_val_set_xpath: %s", sr_strerror(rc));
-                        (&sr_val[counter])->data.uint8_val = number;
-                        (&sr_val[counter])->type = SR_UINT8_T;
-                        counter++;
-
                         json_object_object_get_ex(val, "valid", &v);
                         CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object valid");
                         string_number = (char *) json_object_get_string(v);
@@ -482,19 +476,52 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                         (&sr_val[counter])->type = SR_UINT32_T;
                         counter++;
 
+                        /* check if IOP3 or IOP4 */
                         json_object_object_get_ex(val, "ipv6", &v);
-                        CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object ipv6");
-                        int ip_len = json_object_array_length(v);
-                        int ip_element;
-                        for (ip_element = 0; ip_element < ip_len; ip_element++) {
-                            struct json_object *ip = json_object_array_get_idx(v, ip_element);
-                            snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/ipv6", duid, iaid);
+                        if (NULL != v) {
+                            CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object ipv6");
+                            int ip_len = json_object_array_length(v);
+                            int ip_element;
+                            for (ip_element = 0; ip_element < ip_len; ip_element++) {
+                                struct json_object *ip = json_object_array_get_idx(v, ip_element);
+                                snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/ipv6", duid, iaid);
+                                rc = sr_val_set_xpath(&sr_val[counter], xpath);
+                                CHECK_RET(rc, cleanup, "failed sr_val_set_xpath: %s", sr_strerror(rc));
+                                rc = sr_val_set_str_data(&sr_val[counter], SR_STRING_T, (char *) json_object_get_string(ip));
+                                CHECK_RET(rc, cleanup, "failed sr_val_set_str_data: %s", sr_strerror(rc));
+                                counter++;
+                            }
+
+                            json_object_object_get_ex(val, "length", &v);
+                            CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object length");
+                            string_number = (char *) json_object_get_string(v);
+                            CHECK_NULL_MSG(string_number, &rc, cleanup, "could not get get string");
+                            number = strtol(string_number, &string_number, 10);
+                            snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/length", duid, iaid);
                             rc = sr_val_set_xpath(&sr_val[counter], xpath);
                             CHECK_RET(rc, cleanup, "failed sr_val_set_xpath: %s", sr_strerror(rc));
-                            rc = sr_val_set_str_data(&sr_val[counter], SR_STRING_T, (char *) json_object_get_string(ip));
-                            CHECK_RET(rc, cleanup, "failed sr_val_set_str_data: %s", sr_strerror(rc));
+                            (&sr_val[counter])->data.uint8_val = number;
+                            (&sr_val[counter])->type = SR_UINT8_T;
                             counter++;
+                        } else {
+                            json_object_object_get_ex(val, "ipv6-prefix", &v);
+                            CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object ipv6");
+                            int ip_len = json_object_array_length(v);
+                            int ip_element;
+                            for (ip_element = 0; ip_element < ip_len; ip_element++) {
+                                struct json_object *address = NULL;
+                                struct json_object *ip = json_object_array_get_idx(v, ip_element);
+                                json_object_object_get_ex(ip, "address", &address);
+                                CHECK_NULL_MSG(address, &rc, cleanup, "could not get json object address");
+                                snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/ipv6", duid, iaid);
+                                rc = sr_val_set_xpath(&sr_val[counter], xpath);
+                                CHECK_RET(rc, cleanup, "failed sr_val_set_xpath: %s", sr_strerror(rc));
+                                rc = sr_val_set_str_data(&sr_val[counter], SR_STRING_T, (char *) json_object_get_string(address));
+                                CHECK_RET(rc, cleanup, "failed sr_val_set_str_data: %s", sr_strerror(rc));
+                                counter++;
+                            }
                         }
+
                         if (NULL != xpath) {
                             free(xpath);
                             xpath = NULL;
@@ -544,7 +571,7 @@ int fill_dhcp_v6_data(sr_ctx_t *ctx, char *xpath, sr_val_t **values, size_t *val
     blob_buf_init(&buf, 0);
     u_rc = ubus_lookup_id(u_ctx, "dhcp", &id);
     if (UBUS_STATUS_OK != u_rc) {
-        ERR("ubus [%d]: no object asterisk\n", u_rc);
+        ERR("ubus [%d]: no object dhcp\n", u_rc);
         rc = SR_ERR_INTERNAL;
         goto cleanup;
     }
@@ -554,7 +581,7 @@ int fill_dhcp_v6_data(sr_ctx_t *ctx, char *xpath, sr_val_t **values, size_t *val
     sr_values.values_cnt = values_cnt;
     u_rc = ubus_invoke(u_ctx, id, "ipv6leases", buf.head, dhcp_v6_cb, &sr_values, 0);
     if (UBUS_STATUS_OK != u_rc) {
-        ERR("ubus [%d]: no object asterisk\n", u_rc);
+        ERR("ubus [%d]: no object ipv6leases\n", u_rc);
         rc = SR_ERR_INTERNAL;
         goto cleanup;
     }
