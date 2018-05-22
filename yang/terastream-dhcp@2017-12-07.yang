@@ -293,7 +293,7 @@ module terastream-dhcp {
         "DHCP leases for IPv6";
       config false;
       list dhcp-v6-lease {
-        key "duid iaid";
+        key "assigned";
         description
           "One instance of a DHCP IPv6 lease.";
         leaf duid {
