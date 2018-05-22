@@ -457,6 +457,7 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                         json_object_object_get_ex(val, "length", &v);
                         CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object length");
                         string_number = (char *) json_object_get_string(v);
+                        CHECK_NULL_MSG(string_number, &rc, cleanup, "could not get get string");
                         number = strtol(string_number, &string_number, 10);
                         snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/length", duid, iaid);
                         rc = sr_val_set_xpath(&sr_val[counter], xpath);
@@ -468,6 +469,11 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                         json_object_object_get_ex(val, "valid", &v);
                         CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object valid");
                         string_number = (char *) json_object_get_string(v);
+                        CHECK_NULL_MSG(string_number, &rc, cleanup, "could not get get string");
+                        /* check if the number is negative, if yes, remove it */
+                        if (string_number[0] == '-') {
+                            string_number++;
+                        }
                         number = strtol(string_number, &string_number, 10);
                         snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[duid='%s'][iaid='%s']/valid", duid, iaid);
                         rc = sr_val_set_xpath(&sr_val[counter], xpath);
