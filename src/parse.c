@@ -398,8 +398,8 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                             CHECK_NULL_MSG(i, &rc, cleanup, "could not get json object ipv6");
                             counter = counter + json_object_array_length(i);
                         } else {
-                            json_object_object_get_ex(l, "ipv6-prefix", &i);
-                            CHECK_NULL_MSG(i, &rc, cleanup, "could not get json object ipv6-prefix");
+                            json_object_object_get_ex(l, "ipv6-addr", &i);
+                            CHECK_NULL_MSG(i, &rc, cleanup, "could not get json object ipv6-addr");
                             counter = counter + json_object_array_length(i);
                         }
                     }
@@ -504,7 +504,7 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                             (&sr_val[counter])->type = SR_UINT8_T;
                             counter++;
                         } else {
-                            json_object_object_get_ex(val, "ipv6-prefix", &v);
+                            json_object_object_get_ex(val, "ipv6-addr", &v);
                             CHECK_NULL_MSG(v, &rc, cleanup, "could not get json object ipv6");
                             int ip_len = json_object_array_length(v);
                             int ip_element;
