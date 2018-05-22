@@ -531,6 +531,22 @@ void dhcp_v6_cb(struct ubus_request *req, int type, struct blob_attr *msg)
                                 rc = sr_val_set_str_data(&sr_val[counter], SR_STRING_T, (char *) json_object_get_string(address));
                                 CHECK_RET(rc, cleanup, "failed sr_val_set_str_data: %s", sr_strerror(rc));
                                 counter++;
+
+                                json_object_object_get_ex(ip, "prefix-length", &v);
+                                if (v == NULL) {
+                                    /* default value is 128 */
+                                    string_number = "128";
+                                } else {
+                                    string_number = (char *) json_object_get_string(v);
+                                }
+                                CHECK_NULL_MSG(string_number, &rc, cleanup, "could not get get string");
+                                number = strtol(string_number, &string_number, 10);
+                                snprintf(xpath, len, "/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='%s']/length", assigned);
+                                rc = sr_val_set_xpath(&sr_val[counter], xpath);
+                                CHECK_RET(rc, cleanup, "failed sr_val_set_xpath: %s", sr_strerror(rc));
+                                (&sr_val[counter])->data.uint8_val = number;
+                                (&sr_val[counter])->type = SR_UINT8_T;
+                                counter++;
                             }
                         }
 
