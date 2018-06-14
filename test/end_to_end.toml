@@ -1,0 +1,486 @@
+[login]
+
+address = "172.17.0.2:830"
+username = "root"
+password = "root"
+
+### dhcp_servers ###
+
+############# this section doesn't work yet ##############
+#[[unitTest]]
+#
+#name = "dhcp_servers"
+#
+#[[unitTest.test]]
+#### delete the existing dhcp servers
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+#        <dhcp-servers xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-server xc:operation="delete">
+#                <name>lan</name>
+#            </dhcp-server>
+#            <dhcp-server xc:operation="delete">
+#                <name>wan</name>
+#            </dhcp-server>
+#            <dhcp-server xc:operation="delete">
+#                <name>lan_iptv</name>
+#            </dhcp-server>
+#        </dhcp-servers>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#[[unitTest.test]]
+#### set the dhcp servers
+#
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config>
+#        <dhcp-servers xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-server>
+#                <name>lan</name>
+#                <interface>lan</interface>
+#                <start>100</start>
+#                <stop>249</stop>
+#                <leasetime>43200</leasetime>
+#                <dhcpv6>server</dhcpv6>
+#                <ra>server</ra>
+#                <ra_management>0</ra_management>
+#                <dhcp_option>option:mtu,1500</dhcp_option>
+#            </dhcp-server>
+#            <dhcp-server>
+#                <name>wan</name>
+#                <enable>false</enable>
+#                <interface>wan</interface>
+#            </dhcp-server>
+#            <dhcp-server>
+#                <name>lan_iptv</name>
+#                <interface>lan_iptv</interface>
+#                <start>100</start>
+#                <stop>249</stop>
+#                <leasetime>43200</leasetime>
+#                <dhcpv6>server</dhcpv6>
+#                <ra>server</ra>
+#                <ra_management>0</ra_management>
+#                <sntp>1</sntp>
+#                <dhcp_option>option:mtu,1500</dhcp_option>
+#            </dhcp-server>
+#        </dhcp-servers>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#
+#[[unitTest.test]]
+#
+#RPC = """
+#<get>
+#    <filter  xmlns:terastream-dhcp='http://terastrm.net/ns/yang/terastream-dhcp'  type="xpath" select="/terastream-dhcp:dhcp-servers">
+#    </filter>
+#</get>
+#"""
+#
+#Reply = """<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"><dhcp-servers xmlns="http://terastrm.net/ns/yang/terastream-dhcp"><dhcp-server><name>lan</name><interface>lan</interface><start>100</start><stop>249</stop><leasetime>43200</leasetime><dhcpv6>server</dhcpv6><ra>server</ra><ra_management>0</ra_management><dhcp_option>option:mtu,1500</dhcp_option></dhcp-server><dhcp-server><name>wan</name><enable>false</enable><interface>wan</interface></dhcp-server><dhcp-server><name>lan_iptv</name><interface>lan_iptv</interface><start>100</start><stop>249</stop><leasetime>43200</leasetime><dhcpv6>server</dhcpv6><ra>server</ra><ra_management>0</ra_management><sntp>1</sntp><dhcp_option>option:mtu,1500</dhcp_option></dhcp-server></dhcp-servers></data>"""
+#
+#[[unitTest.test]]
+#
+#RPC = """
+#  <call xmlns="urn:ietf:params:xml:ns:yang:test-plugin">
+#    <command>uci show dhcp.lan</command>
+#  </call>
+#"""
+#
+#Reply = """<response xmlns="urn:ietf:params:xml:ns:yang:test-plugin">dhcp.lan=dhcp
+#dhcp.lan.interface='lan'
+#dhcp.lan.start='100'
+#dhcp.lan.limit='150'
+#dhcp.lan.leasetime='12h'
+#dhcp.lan.dhcpv6='server'
+#dhcp.lan.ra='server'
+#dhcp.lan.ra_management='0'
+#dhcp.lan.dhcp_option='option:mtu,1500'
+#</response>"""
+#
+#[[unitTest.test]]
+#
+#RPC = """
+#  <call xmlns="urn:ietf:params:xml:ns:yang:test-plugin">
+#    <command>uci show dhcp.wan</command>
+#  </call>
+#"""
+#
+#Reply = """<response xmlns="urn:ietf:params:xml:ns:yang:test-plugin">dhcp.wan=dhcp
+#dhcp.wan.interface='wan'
+#dhcp.wan.ignore='1'
+#</response>"""
+#
+#[[unitTest.test]]
+#
+#RPC = """
+#  <call xmlns="urn:ietf:params:xml:ns:yang:test-plugin">
+#    <command>uci show dhcp.lan_iptv</command>
+#  </call>
+#"""
+#
+#Reply = """<response xmlns="urn:ietf:params:xml:ns:yang:test-plugin">dhcp.lan_iptv=dhcp
+#dhcp.lan_iptv.interface='lan_iptv'
+#dhcp.lan_iptv.start='100'
+#dhcp.lan_iptv.limit='150'
+#dhcp.lan_iptv.leasetime='12h'
+#dhcp.lan_iptv.sntp='1'
+#dhcp.lan_iptv.dhcpv6='server'
+#dhcp.lan_iptv.ra='server'
+#dhcp.lan_iptv.ra_management='0'
+#dhcp.lan_iptv.dhcp_option='option:mtu,1500'
+#</response>"""
+
+#[[unitTest]]
+#
+#name = "dhcp-clients"
+#
+#[[unitTest.test]]
+#### delete the existing clients
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/name wan
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/proto dhcpv6
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/accept_ra true
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/request_pd 3
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/request_na 0
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/aftr_v4_local 192.0.0.2
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/aftr_v4_remote 192.0.0.1
+##/terastream-dhcp:dhcp-clients/dhcp-client[name='wan']/reqopts 21 23 31 56 64 67 88 96 99 123 198 199
+#
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+#        <dhcp-clients xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-client xc:operation="delete">
+#                <name>wan</name>
+#            </dhcp-client>
+#        </dhcp-clients>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#
+#[[unitTest.test]]
+#### set the dhcp-clients
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+#        <dhcp-clients xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-client>
+#                <name>wan</name>
+#                <proto>dhcpv6</proto>
+#                <accept_ra>true</accept_ra>
+#                <request_pd>3</request_pd>
+#                <request_na>0</request_na>
+#                <aftr_v4_local>192.0.0.2</aftr_v4_local>
+#                <aftr_v4_remote>192.0.0.1</aftr_v4_remote>
+#                <reqopts>21 23 31 56 64 67 88 96 99 123 198 199</reqopts>
+#            </dhcp-client>
+#        </dhcp-clients>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#
+#[[unitTest.test]]
+#
+#RPC = """
+#<get>
+#    <filter  xmlns:terastream-dhcp='http://terastrm.net/ns/yang/terastream-dhcp'  type="xpath" select="/terastream-dhcp:dhcp-clients">
+#    </filter>
+#</get>
+#"""
+#
+#Reply = """<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"><dhcp-clients xmlns="http://terastrm.net/ns/yang/terastream-dhcp"><dhcp-client><name>wan</name><proto>dhcpv6</proto><accept_ra>true</accept_ra><request_pd>3</request_pd><request_na>0</request_na><aftr_v4_local>192.0.0.2</aftr_v4_local><aftr_v4_remote>192.0.0.1</aftr_v4_remote><reqopts>21 23 31 56 64 67 88 96 99 123 198 199</reqopts></dhcp-client></dhcp-clients></data>"""
+#
+#[[unitTest.test]]
+############## not finished, don't know uci command to get the relevant data ###########
+#RPC = """
+#  <call xmlns="urn:ietf:params:xml:ns:yang:test-plugin">
+#    <command>uci show dhcp</command>
+#  </call>
+#"""
+#
+#Reply = """<response xmlns="urn:ietf:params:xml:ns:yang:test-plugin">dhcp.*=domain
+#</response>"""
+#
+#Type = "regexMatch"
+#
+#
+#[[unitTest]]
+#
+#name = "dhcp-v4-leases"
+#
+#[[unitTest.test]]
+#### delete the existing v4 leases
+##/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='lease-1']/name lease-1
+##/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='lease-1']/leasetime 1513286887
+##/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='lease-1']/hostname archy
+##/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='lease-1']/ipaddr 192.168.1.231
+##/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='lease-1']/macaddr 54:ee:75:94:0b:13
+##/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='lease-1']/device br-lan
+##/terastream-dhcp:dhcp-v4-leases/dhcp-v4-lease[name='lease-1']/connected true
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+#        <dhcp-v4-leases xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-v4-lease xc:operation="delete">
+#                <name>lease-1</name>
+#            </dhcp-v4-lease>
+#        </dhcp-v4-leases>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#
+#[[unitTest.test]]
+#### set the v4 leases
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+#        <dhcp-v4-leases xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-v4-lease>
+#                <name>lease-1</name>
+#                <leasetime>1513286887</leasetime>
+#                <hostname>archy</hostname>
+#                <ipaddr>192.168.1.231</ipaddr>
+#                <macaddr>54:ee:75:94:0b:13</macaddr>
+#                <device>br-lan</device>
+#                <connected>true</connected>
+#            </dhcp-v4-lease>
+#        </dhcp-v4-leases>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#
+#[[unitTest.test]]
+#
+#RPC = """
+#<get>
+#    <filter  xmlns:terastream-dhcp='http://terastrm.net/ns/yang/terastream-dhcp'  type="xpath" select="/terastream-dhcp:dhcp-v4-leases">
+#    </filter>
+#</get>
+#"""
+#
+#Reply = """<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"><dhcp-v4-leases xmlns="http://terastrm.net/ns/yang/terastream-dhcp"><dhcp-v4-lease><name>lease-1</name><leasetime>1513286887</leasetime><hostname>archy</hostname><ipaddr>192.168.1.231</ipaddr><macaddr>54:ee:75:94:0b:13</macaddr><device>br-lan</device><connected>true</connected></dhcp-v4-lease></dhcp-v4-leases></data>"""
+#
+#[[unitTest.test]]
+############### not finished, don't know uci command to get the relevant data ###########
+#RPC = """
+#  <call xmlns="urn:ietf:params:xml:ns:yang:test-plugin">
+#    <command>uci show dhcp</command>
+#  </call>
+#"""
+#
+#Reply = """<response xmlns="urn:ietf:params:xml:ns:yang:test-plugin">dhcp.*=domain
+#</response>"""
+#
+#Type = "regexMatch"
+#
+#[[unitTest]]
+#
+#name = "dhcp-v6-leases"
+#
+#[[unitTest.test]]
+#### delete the existing v6 leases
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/assigned 3974
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/hostname archy
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/iaid 1972636434
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/duid 000100011f51d8fb08d40ca587dr1
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/valid 43190
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/ipv6[.='2a00:c37:8428:7d00::f86'] 2a00:c37:8428:7d00::f86
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/ipv6[.='2a00:c37:8428:7d01::f86'] 2a00:c37:8428:7d01::f86
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/ipv6[.='2a00:c37:8428:7d02::f86'] 2a00:c37:8428:7d02::f86
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/length 128
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/ipv6[.='2a00:c37:7428:7d00::f86'] 2a00:c37:7428:7d00::f86
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/ipv6[.='2a00:c37:7428:7d01::f86'] 2a00:c37:7428:7d01::f86
+##/terastream-dhcp:dhcp-v6-leases/dhcp-v6-lease[assigned='3974']/ipv6[.='2a00:c37:7428:7d02::f86'] 2a00:c37:7428:7d02::f86
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+#        <dhcp-v6-leases xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-v6-lease xc:operation="delete">
+#                <assigned>3974</assigned>
+#            </dhcp-v6-lease>
+#        </dhcp-v6-leases>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#
+#[[unitTest.test]]
+#### set the v6 leases
+#RPC = """
+#<edit-config>
+#    <target>
+#        <running/>
+#    </target>
+#    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+#        <dhcp-v6-leases xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+#            <dhcp-v6-lease>
+#                <assigned>3974</assigned>
+#                <hostname>archy</hostname>
+#                <iaid>1972636434</iaid>
+#                <duid>000100011f51d8fb08d40ca587dr1</duid>
+#                <valid>43190</valid>
+#                <ipv6>2a00:c37:8428:7d00::f86</ipv6>
+#                <ipv6>2a00:c37:8428:7d01::f86</ipv6>
+#                <ipv6>2a00:c37:8428:7d02::f86</ipv6>
+#                <length>128</length>
+#                <ipv6>2a00:c37:7428:7d00::f86</ipv6>
+#                <ipv6>2a00:c37:7428:7d01::f86</ipv6>
+#                <ipv6>2a00:c37:7428:7d02::f86</ipv6>
+#            </dhcp-v6-lease>
+#        </dhcp-v6-leases>
+#    </config>
+#</edit-config>
+#"""
+#
+#Reply = """<ok/>"""
+#
+#[[unitTest.test]]
+#
+#RPC = """
+#<get>
+#    <filter  xmlns:terastream-dhcp='http://terastrm.net/ns/yang/terastream-dhcp'  type="xpath" select="/terastream-dhcp:dhcp-v6-leases">
+#    </filter>
+#</get>
+#"""
+#
+#Reply = """<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"><dhcp-v6-leases xmlns="http://terastrm.net/ns/yang/terastream-dhcp"><dhcp-v6-lease><assigned>3974</assigned><hostname>archy</hostname><iaid>1972636434</iaid><duid>000100011f51d8fb08d40ca587dr1</duid><valid>43190</valid><ipv6>2a00:c37:8428:7d00::f86</ipv6><ipv6>2a00:c37:8428:7d01::f86</ipv6><ipv6>2a00:c37:8428:7d02::f86</ipv6><length>128</length><ipv6>2a00:c37:7428:7d00::f86</ipv6><ipv6>2a00:c37:7428:7d01::f86</ipv6><ipv6>2a00:c37:7428:7d02::f86</ipv6></dhcp-v6-lease></dhcp-v6-leases></data>"""
+#
+#[[unitTest.test]]
+############### not finished, don't know uci command to get the relevant data ###########
+#RPC = """
+#  <call xmlns="urn:ietf:params:xml:ns:yang:test-plugin">
+#    <command>uci show dhcp</command>
+#  </call>
+#"""
+#
+#Reply = """<response xmlns="urn:ietf:params:xml:ns:yang:test-plugin">dhcp.*=domain
+#</response>"""
+#
+#Type = "regexMatch"
+#
+##################### end of section that doesn't work yet #################
+
+[[unitTest]]
+
+name = "domains"
+
+[[unitTest.test]]
+### delete the existing domains
+#/terastream-dhcp:domains/domain[.='www.routerlogin.net'] www.routerlogin.net
+#/terastream-dhcp:domains/domain[.='routerlogin.net'] routerlogin.net
+#/terastream-dhcp:domains/domain[.='www.routerlogin.com'] www.routerlogin.com
+#/terastream-dhcp:domains/domain[.='routerlogin.com'] routerlogin.com
+#/terastream-dhcp:domains/domain[.='www.login.lan'] www.login.lan
+#/terastream-dhcp:domains/domain[.='login.lan'] login.lan
+#/terastream-dhcp:domains/domain[.='login'] login
+#/terastream-dhcp:domains/domain[.='inteno.lan'] inteno.lan
+#/terastream-dhcp:domains/domain[.='ht.lan'] ht.lan
+RPC = """
+<edit-config>
+    <target>
+        <running/>
+    </target>
+    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+        <domains xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+            <domain xc:operation="remove">www.routerlogin.net</domain>
+            <domain xc:operation="remove">routerlogin.net</domain>
+            <domain xc:operation="remove">www.routerlogin.com</domain>
+            <domain xc:operation="remove">routerlogin.com</domain>
+            <domain xc:operation="remove">www.login.lan</domain>
+            <domain xc:operation="remove">login.lan</domain>
+            <domain xc:operation="remove">login</domain>
+            <domain xc:operation="remove">inteno.lan</domain>
+            <domain xc:operation="remove">ht.lan</domain>
+        </domains>
+    </config>
+</edit-config>
+"""
+
+Reply = """<ok/>"""
+
+[[unitTest.test]]
+### set the domains
+RPC = """
+<edit-config>
+    <target>
+        <running/>
+    </target>
+    <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
+        <domains xmlns="http://terastrm.net/ns/yang/terastream-dhcp">
+            <domain>www.routerlogin.net</domain>
+            <domain>routerlogin.net</domain>
+            <domain>www.routerlogin.com</domain>
+            <domain>routerlogin.com</domain>
+            <domain>www.login.lan</domain>
+            <domain>login.lan</domain>
+            <domain>login</domain>
+            <domain>inteno.lan</domain>
+            <domain>ht.lan</domain>
+        </domains>
+    </config>
+</edit-config>
+"""
+
+Reply = """<ok/>"""
+
+[[unitTest.test]]
+
+RPC = """
+<get>
+    <filter  xmlns:terastream-dhcp='http://terastrm.net/ns/yang/terastream-dhcp'  type="xpath" select="/terastream-dhcp:domains">
+    </filter>
+</get>
+"""
+
+Reply = """<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0"><domains xmlns="http://terastrm.net/ns/yang/terastream-dhcp"><domain>www.routerlogin.net</domain><domain>routerlogin.net</domain><domain>www.routerlogin.com</domain><domain>routerlogin.com</domain><domain>www.login.lan</domain><domain>login.lan</domain><domain>login</domain><domain>inteno.lan</domain><domain>ht.lan</domain></domains></data>"""
+
+[[unitTest.test]]
+
+RPC = """
+  <call xmlns="urn:ietf:params:xml:ns:yang:test-plugin">
+    <command>uci show dhcp.@domain[0]</command>
+  </call>
+"""
+
+Reply = """<response xmlns="urn:ietf:params:xml:ns:yang:test-plugin">dhcp.*=domain
+dhcp.*.name='www.routerlogin.net' 'routerlogin.net' 'www.routerlogin.com' 'routerlogin.com' 'www.login.lan' 'login.lan' 'login' 'inteno.lan' 'ht.lan'
+</response>"""
+
+Type = "regexMatch"
+
