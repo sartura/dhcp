@@ -11,6 +11,16 @@ set(SOURCES
     src/dhcp.c
     src/parse.c)
 
+# git SHA1 hash
+execute_process(COMMAND
+  git describe --always --abbrev=40
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+  OUTPUT_VARIABLE GIT_SHA1
+  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+# generate version.h
+configure_file("${PROJECT_SOURCE_DIR}/src/version.h.in" "${PROJECT_SOURCE_DIR}/src/version.h" ESCAPE_QUOTES @ONLY)
+
 if(PLUGIN)
     add_library(${CMAKE_PROJECT_NAME} MODULE ${SOURCES})
     install(TARGETS ${CMAKE_PROJECT_NAME} DESTINATION lib)

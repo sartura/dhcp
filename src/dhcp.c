@@ -12,6 +12,7 @@
 #include <json-c/json.h>
 #include <sr_uci.h>
 
+#include "version.h"
 #include "parse.h"
 
 /* name of the uci config file. */
