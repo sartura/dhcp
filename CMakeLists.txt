@@ -18,6 +18,22 @@ execute_process(COMMAND
   OUTPUT_VARIABLE GIT_SHA1
   ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+# by default set to older version for backward compatibility
+set(SYSREPO_LESS_0_7_5 ON CACHE BOOL "Sysrepo version older than 0.7.5")
+
+# get sysrepo version
+find_package(PkgConfig)
+if (PKG_CONFIG_FOUND)
+    execute_process(COMMAND ${PKG_CONFIG_EXECUTABLE} "--modversion" "libsysrepo" OUTPUT_VARIABLE SYSREPO_VERSION)
+    if(SYSREPO_VERSION)
+        # strip new line from string
+        string(STRIP ${SYSREPO_VERSION} SYSREPO_VERSION)
+        if(${SYSREPO_VERSION} VERSION_GREATER_EQUAL "0.7.5")
+            set(SYSREPO_LESS_0_7_5 OFF)
+        endif()
+    endif()
+endif()
+
 # generate version.h
 configure_file("${PROJECT_SOURCE_DIR}/src/version.h.in" "${PROJECT_SOURCE_DIR}/src/version.h" ESCAPE_QUOTES @ONLY)
 
