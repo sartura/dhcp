@@ -1,3 +1,4 @@
 #include <stdio.h>
 
 const char *GIT_SHA1 = "GIT_SHA1_@GIT_SHA1@";
+const char *COMPILED_SYSREPO_VERSION = "COMPILED_SYSREPO_VERSION_@SYSREPO_VERSION@";
