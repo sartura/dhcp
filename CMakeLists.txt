@@ -19,7 +19,8 @@ execute_process(COMMAND
   ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # by default set to older version for backward compatibility
-set(SYSREPO_LESS_0_7_5 ON CACHE BOOL "Sysrepo version older than 0.7.5")
+set(SYSREPO_LESS_0_7_5 ON CACHE BOOL "Sysrepo version older than 0.7.5 (< 0.7.5)")
+set(SYSREPO_LESS_0_7_7 ON CACHE BOOL "Sysrepo version older than 0.7.7 (< 0.7.7)")
 
 # get sysrepo version
 find_package(PkgConfig)
@@ -30,6 +31,9 @@ if (PKG_CONFIG_FOUND)
         string(STRIP ${SYSREPO_VERSION} SYSREPO_VERSION)
         if(${SYSREPO_VERSION} VERSION_GREATER_EQUAL "0.7.5")
             set(SYSREPO_LESS_0_7_5 OFF)
+        endif()
+        if(${SYSREPO_VERSION} VERSION_GREATER_EQUAL "0.7.7")
+            set(SYSREPO_LESS_0_7_7 OFF)
         endif()
     endif()
 endif()
