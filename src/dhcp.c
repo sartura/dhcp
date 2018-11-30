@@ -52,12 +52,10 @@ sr_uci_mapping_t table_sr_uci[] = {
 static int
 #ifdef SYSREPO_LESS_0_7_5
 dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
-#else
-#ifdef SYSREPO_LESS_0_7_7
+#elif SYSREPO_LESS_0_7_7
 dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, void *private_ctx)
 #else
 dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, const char *original_xpath, void *private_ctx)
-#endif
 #endif
 {
     int rc = SR_ERR_OK;
@@ -77,12 +75,10 @@ error:
 static int
 #ifdef SYSREPO_LESS_0_7_5
 dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
-#else
-#ifdef SYSREPO_LESS_0_7_7
+#elif SYSREPO_LESS_0_7_7
 dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, void *private_ctx)
 #else
 dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, const char *original_xpath, void *private_ctx)
-#endif
 #endif
 {
     int rc = SR_ERR_OK;
