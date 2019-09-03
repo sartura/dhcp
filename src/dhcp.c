@@ -163,7 +163,7 @@ error:
 int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx) {
   int rc = SR_ERR_OK;
 
-  /* INF("sr_plugin_init_cb for sysrepo-plugin-dt-network"); */
+  INF_MSG("sr_plugin_init_cb called for dhcp plugin");
 
   sr_ctx_t *ctx = calloc(1, sizeof(*ctx));
   ctx->sub = NULL;
@@ -189,10 +189,19 @@ int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx) {
   CHECK_RET(rc, error, "failed to load startup datastore: %s", sr_strerror(rc));
 
   /* sync sysrepo datastore and uci configuration file */
+  INF_MSG("sync sysrepo datastore and uci configuration file");
   rc = sync_datastores(ctx);
   CHECK_RET(rc, error,
-            "failed to sync sysrepo datastore and cui configuration file: %s",
+            "failed to sync sysrepo datastore and uci configuration file: %s",
             sr_strerror(rc));
+
+  rc = sr_copy_config(ctx->startup_sess, yang_model, SR_DS_STARTUP,
+                      SR_DS_RUNNING);
+  if (SR_ERR_OK != rc) {
+    WRN_MSG("Failed to copy running datastore to startup");
+    /* TODO handle this error */
+    return rc;
+  }
 
   rc =
       sr_module_change_subscribe(ctx->sess, yang_model, NULL, module_change_cb,
@@ -246,11 +255,12 @@ static void sigint_handler(__attribute__((unused)) int signum) {
 }
 
 int main() {
-  INF_MSG("Plugin application mode initialized");
   sr_conn_ctx_t *connection = NULL;
   sr_session_ctx_t *session = NULL;
   void *private_ctx = NULL;
   int rc = SR_ERR_OK;
+
+  ENABLE_LOGGING(SR_LL_DBG);
 
   /* connect to sysrepo */
   rc = sr_connect(SR_CONN_DEFAULT, &connection);

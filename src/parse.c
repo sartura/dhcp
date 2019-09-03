@@ -342,7 +342,8 @@ int sync_datastores(sr_ctx_t *ctx) {
 
   if (stat(startup_file, &st) != 0) {
     ERR("Could not open sysrepo file %s", startup_file);
-    return SR_ERR_INTERNAL;
+    rc = SR_ERR_INTERNAL;
+    goto cleanup;
   }
 
   if (0 == st.st_size) {
@@ -350,11 +351,11 @@ int sync_datastores(sr_ctx_t *ctx) {
     INF_MSG("copy uci data to sysrepo");
     const char *network[] = {"interface", 0};
     rc = sr_uci_init_data(ctx, "network", network);
-    CHECK_RET(rc, cleanup, "failed to apply uci data to sysrepo: %s",
+    CHECK_RET(rc, cleanup, "failed to apply network uci data to sysrepo: %s",
               sr_strerror(rc));
     const char *dhcp[] = {"dhcp", "domain", 0};
     rc = sr_uci_init_data(ctx, "dhcp", dhcp);
-    CHECK_RET(rc, cleanup, "failed to apply uci data to sysrepo: %s",
+    CHECK_RET(rc, cleanup, "failed to apply dhcp uci data to sysrepo: %s",
               sr_strerror(rc));
   } else {
     /* copy the sysrepo startup datastore to uci */
