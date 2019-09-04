@@ -3,13 +3,14 @@
 #include <uci.h>
 #include <unistd.h>
 
-#include <sysrepo.h>
-
 #include <json-c/json.h>
 #include <libubox/blobmsg.h>
 #include <libubox/blobmsg_json.h>
 #include <libubus.h>
+#include <libyang/libyang.h>
 #include <sr_uci.h>
+#include <sysrepo.h>
+#include <sysrepo/values.h>
 
 #include "parse.h"
 #include "version.h"
@@ -78,18 +79,80 @@ static int dhcp_v4_state_data_cb(sr_session_ctx_t *session,
                                  const char *request_xpath, uint32_t request_id,
                                  struct lyd_node **parent, void *private_data) {
   int rc = SR_ERR_OK;
+  sr_ctx_t *ctx = private_data;
+  sr_val_t *values = NULL;
+  size_t values_cnt;
+  char *value_string = NULL;
+  const struct ly_ctx *ly_ctx = NULL;
 
+  rc = fill_dhcp_v4_data(ctx, (char *)path, &values, &values_cnt);
+  if (SR_ERR_OK != rc) {
+    DBG("failed to load state data: %s", sr_strerror(rc));
+    rc = SR_ERR_OK;
+  }
+  CHECK_RET(rc, error, "failed to load state data: %s", sr_strerror(rc));
+
+  if (*parent == NULL) {
+    ly_ctx = sr_get_context(sr_session_get_connection(session));
+    CHECK_NULL_MSG(ly_ctx, &rc, error,
+                   "sr_get_context error: libyang context is NULL");
+    *parent = lyd_new_path(NULL, ly_ctx, request_xpath, NULL, 0, 0);
+  }
+
+  for (size_t i = 0; i < values_cnt; i++) {
+    value_string = sr_val_to_str(&values[i]);
+    lyd_new_path(*parent, NULL, values[i].xpath, value_string, 0, 0);
+    free(value_string);
+    value_string = NULL;
+  }
+
+error:
+  if (values != NULL) {
+    sr_free_values(values, values_cnt);
+    values = NULL;
+    values_cnt = 0;
+  }
   return rc;
 }
 
 static int dhcp_v6_state_data_cb(sr_session_ctx_t *session,
                                  const char *module_name, const char *path,
                                  const char *request_xpath, uint32_t request_id,
-                                 struct lyd_node **parent, void *private_data)
-
-{
+                                 struct lyd_node **parent, void *private_data) {
   int rc = SR_ERR_OK;
+  sr_ctx_t *ctx = private_data;
+  sr_val_t *values = NULL;
+  size_t values_cnt;
+  char *value_string = NULL;
+  const struct ly_ctx *ly_ctx = NULL;
 
+  rc = fill_dhcp_v6_data(ctx, (char *)path, &values, &values_cnt);
+  if (SR_ERR_OK != rc) {
+    DBG("failed to load state data: %s", sr_strerror(rc));
+    rc = SR_ERR_OK;
+  }
+  CHECK_RET(rc, error, "failed to load state data: %s", sr_strerror(rc));
+
+  if (*parent == NULL) {
+    ly_ctx = sr_get_context(sr_session_get_connection(session));
+    CHECK_NULL_MSG(ly_ctx, &rc, error,
+                   "sr_get_context error: libyang context is NULL");
+    *parent = lyd_new_path(NULL, ly_ctx, request_xpath, NULL, 0, 0);
+  }
+
+  for (size_t i = 0; i < values_cnt; i++) {
+    value_string = sr_val_to_str(&values[i]);
+    lyd_new_path(*parent, NULL, values[i].xpath, value_string, 0, 0);
+    free(value_string);
+    value_string = NULL;
+  }
+
+error:
+  if (values != NULL) {
+    sr_free_values(values, values_cnt);
+    values = NULL;
+    values_cnt = 0;
+  }
   return rc;
 }
 
@@ -104,7 +167,7 @@ static int parse_change(sr_session_ctx_t *session, const char *module_name,
       0,
   };
 
-  snprintf(xpath, 100, "/%s:*", module_name);
+  snprintf(xpath, 100, "/%s:*//.", module_name);
 
   rc = sr_get_changes_iter(session, xpath, &it);
   if (SR_ERR_OK != rc) {
@@ -114,12 +177,12 @@ static int parse_change(sr_session_ctx_t *session, const char *module_name,
 
   while (SR_ERR_OK ==
          sr_get_change_next(session, it, &oper, &old_value, &new_value)) {
+
     rc = sysrepo_to_uci(ctx, oper, old_value, new_value, event);
     sr_free_val(old_value);
     sr_free_val(new_value);
     CHECK_RET(rc, error, "failed to add operation: %s", sr_strerror(rc));
   }
-
   commit_uci_file("dhcp");
   commit_uci_file("network");
 
