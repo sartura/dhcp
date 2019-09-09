@@ -198,7 +198,6 @@ static int module_change_cb(sr_session_ctx_t *session, const char *module_name,
                             uint32_t request_id, void *private_data) {
   int rc = SR_ERR_OK;
   sr_ctx_t *ctx = private_data;
-  INF("%s configuration has changed.", yang_model);
 
   ctx->sess = session;
 
