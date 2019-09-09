@@ -262,7 +262,7 @@ int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx) {
   if (SR_ERR_OK != rc) {
     WRN_MSG("Failed to copy running datastore to startup");
     /* TODO handle this error */
-    return rc;
+    goto error;
   }
 
   rc =
