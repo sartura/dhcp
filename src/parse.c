@@ -108,7 +108,7 @@ int sr_stop_cb(sr_ctx_t *ctx, sr_change_oper_t op, sr_val_t *old_val,
         "/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start", key);
     CHECK_NULL_MSG(limit_xpath, &rc, cleanup, "failed to generate path");
 
-    rc = sr_get_item(ctx->sess, limit_xpath, &value);
+    rc = sr_get_item(ctx->sess, limit_xpath, 0, &value);
     CHECK_RET(rc, cleanup, "failed sr_get_item %s", sr_strerror(rc));
     unsigned long limit = new_val->data.uint32_val - value->data.uint32_val + 1;
     char limit_string[12];
