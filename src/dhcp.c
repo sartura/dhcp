@@ -215,8 +215,7 @@ static int module_change_cb(sr_session_ctx_t *session, const char *module_name,
   }
 
   rc = parse_change(session, module_name, ctx, event);
-  CHECK_RET(rc, error, "failed to apply sysrepo changes to snabb: %s",
-            sr_strerror(rc));
+  CHECK_RET(rc, error, "failed to apply sysrepo changes: %s", sr_strerror(rc));
 
 error:
   return rc;
