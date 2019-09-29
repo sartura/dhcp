@@ -49,14 +49,7 @@ sr_uci_mapping_t table_sr_uci[] = {
     {sr_option_cb, uci_dhcpv6_option_cb, "network.%s.reqopts", "/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/reqopts"},
 };
 
-static int
-#if defined(SYSREPO_LESS_0_7_5)
-dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
-#elif defined(SYSREPO_LESS_0_7_7)
-dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, void *private_ctx)
-#else
-dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, const char *original_xpath, void *private_ctx)
-#endif
+static int dhcp_v4_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, const char *original_xpath, void *private_ctx)
 {
     int rc = SR_ERR_OK;
     sr_ctx_t *ctx = private_ctx;
@@ -72,14 +65,7 @@ error:
     return rc;
 }
 
-static int
-#if defined(SYSREPO_LESS_0_7_5)
-dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, void *private_ctx)
-#elif defined(SYSREPO_LESS_0_7_7)
-dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, void *private_ctx)
-#else
-dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, const char *original_xpath, void *private_ctx)
-#endif
+static int dhcp_v6_state_data_cb(const char *xpath, sr_val_t **values, size_t *values_cnt, uint64_t request_id, const char *original_xpath, void *private_ctx)
 {
     int rc = SR_ERR_OK;
     sr_ctx_t *ctx = private_ctx;
@@ -145,7 +131,6 @@ static int module_change_cb(sr_session_ctx_t *session, const char *module_name, 
         rc = sr_copy_config(ctx->startup_sess, module_name, SR_DS_RUNNING, SR_DS_STARTUP);
         if (SR_ERR_OK != rc) {
             WRN_MSG("Failed to copy running datastore to startup");
-            /* TODO handle this error */
             return rc;
         }
         return SR_ERR_OK;
@@ -161,8 +146,6 @@ error:
 int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_ctx)
 {
     int rc = SR_ERR_OK;
-
-    /* INF("sr_plugin_init_cb for sysrepo-plugin-dt-network"); */
 
     sr_ctx_t *ctx = calloc(1, sizeof(*ctx));
     ctx->sub = NULL;

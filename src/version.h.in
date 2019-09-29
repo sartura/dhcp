@@ -3,8 +3,3 @@
 const char *GIT_SHA1 = "GIT_SHA1_@GIT_SHA1@";
 const char *COMPILED_SYSREPO_VERSION = "COMPILED_SYSREPO_VERSION_@SYSREPO_VERSION@";
 
-// check if Sysrepo < 0.7.5 is used
-#cmakedefine SYSREPO_LESS_0_7_5
-
-// check if Sysrepo < 0.7.7 is used
-#cmakedefine SYSREPO_LESS_0_7_7
