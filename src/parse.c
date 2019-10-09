@@ -328,26 +328,27 @@ cleanup:
 }
 
 int sync_datastores(sr_ctx_t *ctx) {
-  char *startup_file = NULL;
+  char *datatstore_command = NULL;
   int rc = SR_ERR_OK;
-  struct stat st;
+  FILE *fp;
 
   /* check if the startup datastore is empty
-   * by checking the content of the file */
-  int len = strlen(ctx->yang_model) + 28;
-  startup_file = malloc(sizeof(char) * len);
-  CHECK_NULL_MSG(startup_file, &rc, cleanup, "malloc failed");
+   * by checking the output of sysrepocfg */
 
-  snprintf(startup_file, len, "/etc/sysrepo/data/%s.startup", ctx->yang_model);
+  int len = strlen(ctx->yang_model) + 30;
+  datatstore_command = malloc(sizeof(char) * len);
+  CHECK_NULL_MSG(datatstore_command, &rc, cleanup, "malloc failed");
 
-  if (stat(startup_file, &st) != 0) {
-    ERR("Could not open sysrepo file %s", startup_file);
-    rc = SR_ERR_INTERNAL;
-    goto cleanup;
-  }
+  snprintf(datatstore_command, len, "sysrepocfg -X -d startup -m %s", ctx->yang_model);
 
-  if (0 == st.st_size) {
-    /* parse uci config */
+  INF_MSG(datatstore_command);
+  fp = popen(datatstore_command, "r");
+  CHECK_NULL_MSG(fp, &rc, cleanup, "popen failed");
+  if (fgetc(fp) != EOF) {
+    INF_MSG("copy sysrepo data to uci");
+    CHECK_RET(rc, cleanup, "failed to apply sysrepo startup data to snabb: %s",
+              sr_strerror(rc));
+  } else {
     INF_MSG("copy uci data to sysrepo");
     const char *network[] = {"interface", 0};
     rc = sr_uci_init_data(ctx, "network", network);
@@ -357,17 +358,13 @@ int sync_datastores(sr_ctx_t *ctx) {
     rc = sr_uci_init_data(ctx, "dhcp", dhcp);
     CHECK_RET(rc, cleanup, "failed to apply dhcp uci data to sysrepo: %s",
               sr_strerror(rc));
-  } else {
-    /* copy the sysrepo startup datastore to uci */
-    INF_MSG("copy sysrepo data to uci");
-    CHECK_RET(rc, cleanup, "failed to apply sysrepo startup data to snabb: %s",
-              sr_strerror(rc));
   }
 
 cleanup:
-  if (NULL != startup_file) {
-    free(startup_file);
+  if (NULL != datatstore_command) {
+    free(datatstore_command);
   }
+  fclose(fp);
   return rc;
 }
 
