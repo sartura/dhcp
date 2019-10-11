@@ -341,7 +341,6 @@ int sync_datastores(sr_ctx_t *ctx) {
 
   snprintf(datatstore_command, len, "sysrepocfg -X -d startup -m %s", ctx->yang_model);
 
-  INF_MSG(datatstore_command);
   fp = popen(datatstore_command, "r");
   CHECK_NULL_MSG(fp, &rc, cleanup, "popen failed");
   if (fgetc(fp) != EOF) {
