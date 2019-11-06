@@ -81,7 +81,7 @@ int uci_leasetime_cb(sr_ctx_t *ctx, char *xpath, char *ucipath,
   if (UCI_OK == rc) {
     char leasetime[12];
     snprintf(leasetime, 12, "%.0lf", parse_leasetime(uci_val));
-    rc = sr_set_item_str(ctx->startup_sess, xpath, leasetime, flag);
+    rc = sr_set_item_str(ctx->startup_sess, xpath, leasetime, NULL, flag);
     free(uci_val);
     CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
   }
@@ -183,7 +183,7 @@ int uci_stop_cb(sr_ctx_t *ctx, char *xpath, char *ucipath, sr_edit_flag_t flag,
   char stop_string[12];
   snprintf(stop_string, 12, "%lu", stop);
 
-  rc = sr_set_item_str(ctx->startup_sess, xpath, stop_string, flag);
+  rc = sr_set_item_str(ctx->startup_sess, xpath, stop_string, NULL, flag);
   CHECK_RET(rc, cleanup, "failed sr_set_item_str: %s", sr_strerror(rc));
 
 cleanup:
