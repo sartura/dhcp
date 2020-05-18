@@ -22,28 +22,4 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-#include <sr_uci.h>
-
-int sync_datastores(sr_ctx_t *ctx);
-int fill_dhcp_v6_data(sr_ctx_t *ctx, char *xpath, sr_val_t **values,
-                      size_t *values_cnt);
-int fill_dhcp_v4_data(sr_ctx_t *ctx, char *xpath, sr_val_t **values,
-                      size_t *values_cnt);
-
-int sr_list_option_cb(sr_ctx_t *, sr_change_oper_t, sr_val_t *, sr_val_t *,
-                      char *, char *);
-
-int sr_leasetime_cb(sr_ctx_t *, sr_change_oper_t, sr_val_t *, sr_val_t *,
-                    char *, char *);
-int uci_leasetime_cb(sr_ctx_t *, char *, char *, sr_edit_flag_t, void *);
-
-int sr_stop_cb(sr_ctx_t *, sr_change_oper_t, sr_val_t *, sr_val_t *, char *,
-               char *);
-int uci_stop_cb(sr_ctx_t *, char *, char *, sr_edit_flag_t, void *);
-
-int uci_dhcpv6_boolean_cb(sr_ctx_t *, char *, char *, sr_edit_flag_t, void *);
-int uci_dhcpv6_option_cb(sr_ctx_t *, char *, char *, sr_edit_flag_t, void *);
-
-extern sr_uci_mapping_t table_sr_uci[];
-
 #endif /* PARSE_H */
