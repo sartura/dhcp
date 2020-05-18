@@ -53,6 +53,11 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
     OUTPUT_NAME ${CMAKE_PROJECT_NAME}
     PREFIX "")
 
+# dependencies - libyang
+find_package(LibYANG REQUIRED)
+target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBYANG_LIBRARIES})
+include_directories(${LIBYANG_INCLUDE_DIRS})
+
 # dependencies - sysrepo
 find_package(SYSREPO REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} ${SYSREPO_LIBRARIES})
