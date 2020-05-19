@@ -121,6 +121,7 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 	const char *prev_list = NULL;
 	bool prev_default = false;
 	char *node_xpath = NULL;
+	const char *node_value = NULL;
 
 	SRP_LOG_INF("module_name: %s, xpath: %s, request_id: %" PRIu32, module_name, xpath, request_id);
 
@@ -133,9 +134,16 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 			}
 
 			while (sr_get_change_tree_next(session, dhcp_server_change_iter, &operation, &node, &prev_value, &prev_list, &prev_default) == SR_ERR_OK) {
+				if (node->schema->nodetype != LYS_LEAF && node->schema->nodetype != LYS_LEAFLIST) {
+					continue;
+				}
+
 				node_xpath = lyd_path(node);
+				node_value = ((struct lyd_node_leaf_list *) node)->value_str;
+
 				SRP_LOG_INF("operation: %d", operation);
 				SRP_LOG_INF("lyd_node xpath: %s", node_xpath);
+				SRP_LOG_INF("value: %s", node_value);
 				SRP_LOG_INF("previous value: %s", prev_value);
 				SRP_LOG_INF("previous list: %s", prev_list);
 				SRP_LOG_INF("previous default value: %d", prev_default);
@@ -149,7 +157,6 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 				// 		create uci section -> uci_path, value = NULL, uci_context? uci_package?
 				//		set/create uci option -> uci_path, value = NULL
 				//		delete uci section/option -> uci_path, value = NULL
-				//
 
 				switch (operation) {
 					case SR_OP_CREATED:
