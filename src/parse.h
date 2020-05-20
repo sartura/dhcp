@@ -22,4 +22,16 @@
 #ifndef PARSE_H
 #define PARSE_H
 
+#include <uci.h>
+
+typedef int (*parse_uci_set_cb)(struct uci_context *uci_context, const char *value);
+
+int parse_uci_section_set_cb(struct uci_context *uci_context, const char *value);
+int parse_uci_negated_boolean_set_cb(struct uci_context *uci_context, const char *value);
+int parse_uci_string_set_cb(struct uci_context *uci_context, const char *value);
+int parse_uci_limit_set_cb(struct uci_context *uci_context, const char *value);
+int parse_uci_leasetime_set_cb(struct uci_context *uci_context, const char *value);
+int parse_uci_list_set_cb(struct uci_context *uci_context, const char *value);
+int parse_uci_boolean_set_cb(struct uci_context *uci_context, const char *value);
+
 #endif /* PARSE_H */
