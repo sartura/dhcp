@@ -8,7 +8,7 @@
 #include <sysrepo.h>
 #include <sysrepo/xpath.h>
 
-#include "parse.h"
+#include "srpu.h"
 
 #define ARRAY_SIZE(X) (sizeof((X)) / sizeof((X)[0]))
 
