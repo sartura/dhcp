@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include <uci.h>
 #include <sysrepo.h>
 #include <sysrepo/xpath.h>
 
@@ -20,30 +19,23 @@ void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data);
 
 static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_name, const char *xpath, sr_event_t event, uint32_t request_id, void *private_data);
 
-static char *dhcp_path_key_set(const char *path, const char *key);
-static int dhcp_uci_data_set(const char *uci_path, const char *value, const sr_change_oper_t oparation, parse_uci_set_cb parse_uci_set);
-
-struct {
-	const char *xpath;
-	const char *uci_path;
-	parse_uci_set_cb parse_uci_set;
-} sysrepo_uci_template_map[] = {
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/name", "dhcp.%s", parse_uci_section_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/enable", "dhcp.%s.ignore", parse_uci_negated_boolean_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface", "dhcp.%s.interface", parse_uci_string_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start", "dhcp.%s.start", parse_uci_string_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/stop", "dhcp.%s.limit", parse_uci_limit_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/leasetime", "dhcp.%s.leasetime", parse_uci_leasetime_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcpv6", "dhcp.%s.dhcpv6", parse_uci_string_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra", "dhcp.%s.ra", parse_uci_string_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra_management", "dhcp.%s.ra_management", parse_uci_string_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp", "dhcp.%s.sntp", parse_uci_string_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option", "dhcp.%s.dhcp_option", parse_uci_list_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dynamicdhcp", "dhcp.%s.dynamicdhcp", parse_uci_boolean_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/force", "dhcp.%s.force", parse_uci_boolean_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ndp", "dhcp.%s.ndp", parse_uci_string_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/master", "dhcp.%s.master", parse_uci_boolean_set_cb},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/networkid", "dhcp.%s.networkid", parse_uci_string_set_cb},
+srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_uci_path_template_map[] = {
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/name", "dhcp.%s", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/enable", "dhcp.%s.ignore", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface", "dhcp.%s.interface", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start", "dhcp.%s.start", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/stop", "dhcp.%s.limit", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/leasetime", "dhcp.%s.leasetime", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcpv6", "dhcp.%s.dhcpv6", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra", "dhcp.%s.ra", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra_management", "dhcp.%s.ra_management", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp", "dhcp.%s.sntp", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option", "dhcp.%s.dhcp_option", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dynamicdhcp", "dhcp.%s.dynamicdhcp", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/force", "dhcp.%s.force", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ndp", "dhcp.%s.ndp", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/master", "dhcp.%s.master", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/networkid", "dhcp.%s.networkid", NULL, NULL},
 };
 
 int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
@@ -67,6 +59,8 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 	*private_data = startup_session;
 
 	// TODO: synchronize DS and system
+	//			check if SR_DS_RUNNING is empty
+	//			if so load from uci and fill sysrepo data
 
 	SRP_LOG_INFMSG("subscribing to module change");
 
@@ -112,12 +106,11 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 	bool prev_default = false;
 	char *node_xpath = NULL;
 	const char *node_value = NULL;
-	sr_xpath_ctx_t sr_xpath_ctx = {0};
-	char *xpath_node_name = NULL;
-	char *xpath_node_key_name = NULL;
-	char *xpath_node_key_value = NULL;
-	char *table_xpath = NULL;
-	char *table_uci_path = NULL;
+	char *uci_path = NULL;
+	struct lyd_node_leaf_list *node_leaf_list;
+	struct lys_node_leaf *schema_node_leaf;
+
+	srpu_transform_data_cb transform_sysrepo_data_cb = NULL;
 
 	SRP_LOG_INF("module_name: %s, xpath: %s, request_id: %" PRIu32, module_name, xpath, request_id);
 
@@ -143,40 +136,83 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 		}
 
 		while (sr_get_change_tree_next(session, dhcp_server_change_iter, &operation, &node, &prev_value, &prev_list, &prev_default) == SR_ERR_OK) {
-			if (node->schema->nodetype != LYS_LEAF && node->schema->nodetype != LYS_LEAFLIST) {
-				continue;
-			}
-
 			node_xpath = lyd_path(node);
-			node_value = ((struct lyd_node_leaf_list *) node)->value_str;
 
-			xpath_node_name = sr_xpath_next_node(node_xpath, &sr_xpath_ctx);
-			if (xpath_node_name) {
-				do {
-					xpath_node_key_name = sr_xpath_next_key_name(NULL, &sr_xpath_ctx);
-					if (xpath_node_key_name) {
-						xpath_node_key_value = strdup(sr_xpath_next_key_value(NULL, &sr_xpath_ctx));
-						break;
-					}
-				} while (sr_xpath_next_node(NULL, &sr_xpath_ctx));
+			error = srpu_xpath_to_uci_path_convert(node_xpath, dhcp_xpath_uci_uci_path_template_map, &uci_path); // special error if not found in table
+			if (error) {
+				SRP_LOG_ERRMSG("srpu_xpath_to_uci_path_convert error");
+				goto out;
 			}
 
-			sr_xpath_recover(&sr_xpath_ctx);
+			error = srpu_transfor_sysrepo_data_cb_get(node_xpath, dhcp_xpath_uci_uci_path_template_map, &transform_sysrepo_data_cb);
+			if (error) {
+				SRP_LOG_ERRMSG("srpu_xpath_to_uci_path_convert error");
+				goto out;
+			}
 
-			for (size_t i = 0; i < ARRAY_SIZE(sysrepo_uci_template_map); i++) {
-				table_xpath = dhcp_path_key_set(sysrepo_uci_template_map[i].xpath, xpath_node_key_value);
-				table_uci_path = dhcp_path_key_set(sysrepo_uci_template_map[i].uci_path, xpath_node_key_value);
-				if (strcmp(node_xpath, table_xpath) == 0) {
-					dhcp_uci_data_set(table_uci_path, node_value, operation, sysrepo_uci_template_map[i].parse_uci_set);
+			if (node->schema->nodetype == LYS_LEAF || node->schema->nodetype == LYS_LEAFLIST) {
+				node_leaf_list = (struct lyd_node_leaf_list *) node;
+				node_value = node_leaf_list->value_str;
+				if (node_value == NULL) {
+					schema_node_leaf = (struct lys_node_leaf *) node_leaf_list->schema;
+					node_value = schema_node_leaf->dflt ? schema_node_leaf->dflt : "";
 				}
-
-				free(table_xpath);
-				table_xpath = NULL;
-
-				free(table_uci_path);
-				table_uci_path = NULL;
 			}
 
+			if (node->schema->nodetype == LYS_LIST) {
+				if (operation == SR_OP_CREATED) {
+					error = srpu_uci_section_create(uci_path);
+					if (error) {
+						SRP_LOG_ERR("srpu_uci_section_create (%s) error", uci_path);
+						goto out;
+					}
+				} else if (operation == SR_OP_DELETED) {
+					error = srpu_uci_section_delete(uci_path);
+					if (error) {
+						SRP_LOG_ERR("srpu_uci_section_delete (%s) error", uci_path);
+						goto out;
+					}
+				}
+			} else if (node->schema->nodetype == LYS_LEAF) {
+				if (operation == SR_OP_CREATED || operation == SR_OP_MODIFIED) {
+					error = srpu_uci_option_set(uci_path, node_value, transform_sysrepo_data_cb);
+					if (error) {
+						SRP_LOG_ERR("srpu_uci_option_set (%s) error", uci_path);
+						goto out;
+					}
+				} else if (operation == SR_OP_DELETED) {
+					error = srpu_uci_option_remove(uci_path);
+					if (error) {
+						SRP_LOG_ERR("srpu_uci_option_remove (%s) error", uci_path);
+						goto out;
+					}
+				}
+			} else if (node->schema->nodetype == LYS_LEAFLIST) {
+				if (operation == SR_OP_CREATED || operation == SR_OP_MODIFIED) {
+					if (prev_value) {
+						error = srpu_uci_list_remove(uci_path, prev_value);
+						if (error) {
+							SRP_LOG_ERR("srpu_uci_list_remove (%s) error", uci_path);
+							goto out;
+						}
+					}
+
+					error = srpu_uci_list_set(uci_path, node_value, transform_sysrepo_data_cb);
+					if (error) {
+						SRP_LOG_ERR("srpu_uci_list_set (%s) error", uci_path);
+						goto out;
+					}
+				} else if (operation == SR_OP_DELETED) {
+					error = srpu_uci_list_remove(uci_path, node_value);
+					if (error) {
+						SRP_LOG_ERR("srpu_uci_list_remove (%s) error", uci_path);
+						goto out;
+					}
+				}
+			}
+
+			free(uci_path);
+			uci_path = NULL;
 			free(node_xpath);
 			node_xpath = NULL;
 		}
@@ -184,46 +220,10 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 
 out:
 	free(node_xpath);
-	free(xpath_node_key_value);
-	free(table_xpath);
-	free(table_uci_path);
+	free(uci_path);
 	sr_free_change_iter(dhcp_server_change_iter);
 
 	return error ? SR_ERR_CALLBACK_FAILED : SR_ERR_OK;
-}
-
-static char *dhcp_path_key_set(const char *path, const char *key)
-{
-	char *value = NULL;
-	size_t length = 0;
-
-	if (path == NULL) {
-		goto out;
-	}
-
-	if (key == NULL) { /* if the xpath does not contain list elements, copy string */
-		value = strdup(path);
-		goto out;
-	}
-
-	length = strlen(key) + strlen(path) + 1;
-
-	value = malloc(sizeof(char) * length);
-	if (value == NULL) {
-		SRP_LOG_ERRMSG("malloc error");
-		goto out;
-	}
-
-	snprintf(value, length, path, key);
-
-out:
-	return value;
-}
-
-static int dhcp_uci_data_set(const char *uci_path, const char *value, const sr_change_oper_t oparation, parse_uci_set_cb parse_uci_set)
-{
-	SRP_LOG_INFMSG("not implemented");
-	return 0;
 }
 
 #ifndef PLUGIN
