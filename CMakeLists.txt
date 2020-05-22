@@ -10,7 +10,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src/)
 
 set(SOURCES
     src/dhcp.c
-    src/parse.c
+    src/srpu.c
 )
 
 # git SHA1 hash
