@@ -24,6 +24,9 @@
 
 #include <stdlib.h>
 
+// TODO: error codes as XM
+// TODO: function for error code to string
+
 typedef char *(*srpu_transform_data_cb)(const char *uci_value, void *private_data);
 
 typedef struct {

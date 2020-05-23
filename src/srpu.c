@@ -54,6 +54,7 @@ int srpu_xpath_to_uci_path_convert(const char *xpath, srpu_uci_xpath_uci_templat
 	}
 
 	// TODO: implement
+	// special error if not found in table
 
 	*uci_path = strdup("uci dummy data");
 

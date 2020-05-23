@@ -138,7 +138,7 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 		while (sr_get_change_tree_next(session, dhcp_server_change_iter, &operation, &node, &prev_value, &prev_list, &prev_default) == SR_ERR_OK) {
 			node_xpath = lyd_path(node);
 
-			error = srpu_xpath_to_uci_path_convert(node_xpath, dhcp_xpath_uci_uci_path_template_map, &uci_path); // special error if not found in table
+			error = srpu_xpath_to_uci_path_convert(node_xpath, dhcp_xpath_uci_uci_path_template_map, &uci_path);
 			if (error) {
 				SRP_LOG_ERRMSG("srpu_xpath_to_uci_path_convert error");
 				goto out;
