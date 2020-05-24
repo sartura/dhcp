@@ -12,7 +12,7 @@
 #define ARRAY_SIZE(X) (sizeof((X)) / sizeof((X)[0]))
 
 #define DHCP_YANG_MODEL "terastream-dhcp"
-#define DHCP_UCI_CONFIG "dhcp"
+#define SYSREPOCFG_EMPTY_CHECK_COMMAND "sysrepocfg -X -d running -m " DHCP_YANG_MODEL
 
 int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data);
 void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data);
@@ -38,11 +38,30 @@ srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_uci_path_template_map[] = {
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/networkid", "dhcp.%s.networkid", NULL, NULL},
 };
 
+static const char *dhcp_uci_sections[] = {"dhcp", "domain"};
+static const char *network_uci_sections[] = {"network", "interface"};
+
+static struct {
+	const char *uci_file;
+	const char **uci_section_list;
+	size_t uci_section_list_size;
+} dhcp_config_files[] = {
+	{"dhcp", dhcp_uci_sections, ARRAY_SIZE(dhcp_uci_sections)},
+	{"network", network_uci_sections, ARRAY_SIZE(network_uci_sections)},
+};
+
 int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 {
 	int error = 0;
 	sr_conn_ctx_t *connection = NULL;
 	sr_session_ctx_t *startup_session = NULL;
+	FILE *sysrepocfg_DS_empty_check = NULL;
+	char **uci_path_list = NULL;
+	size_t uci_path_list_size = 0;
+	char *xpath = NULL;
+	srpu_transform_data_cb transform_uci_data_cb = NULL;
+	char **uci_value_list = NULL;
+	size_t uci_value_list_size = 0;
 	sr_subscription_ctx_t *subscrption = NULL;
 
 	*private_data = NULL;
@@ -58,9 +77,58 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 
 	*private_data = startup_session;
 
-	// TODO: synchronize DS and system
-	//			check if SR_DS_RUNNING is empty
-	//			if so load from uci and fill sysrepo data
+	sysrepocfg_DS_empty_check = popen(SYSREPOCFG_EMPTY_CHECK_COMMAND, "r");
+	if (sysrepocfg_DS_empty_check == NULL) {
+		SRP_LOG_ERRMSG("popen error");
+		error = -1;
+		goto error_out;
+	}
+
+	if (fgetc(sysrepocfg_DS_empty_check) == EOF) { // running DS is empty load UCI data to Sysrepo running DS
+		for (size_t i = 0; i < ARRAY_SIZE(dhcp_config_files); i++) {
+			error = srpu_uci_path_list_get(dhcp_config_files[i].uci_file, dhcp_config_files[i].uci_section_list, dhcp_config_files[i].uci_section_list_size, &uci_path_list, &uci_path_list_size);
+			if (error) {
+				SRP_LOG_ERR("srpu_uci_path_list_get error (%d): %s", error, srpu_error_description_get(error));
+				goto error_out;
+			}
+
+			for (size_t j = 0; j < uci_path_list_size; j++) {
+				error = srpu_uci_to_xpath_path_convert(uci_path_list[j], dhcp_xpath_uci_uci_path_template_map, &xpath);
+				if (error && error != SRPU_ERR_NOT_EXISTS) {
+					SRP_LOG_ERR("srpu_uci_to_xpath_path_convert error (%d): %s", error, srpu_error_description_get(error));
+					goto error_out;
+				} else if (error == SRPU_ERR_NOT_EXISTS) {
+					continue;
+				}
+
+				error = srpu_transfor_uci_data_cb_get(uci_path_list[j], dhcp_xpath_uci_uci_path_template_map, &transform_uci_data_cb);
+				if (error) {
+					SRP_LOG_ERR("srpu_transfor_uci_data_cb_get error (%d): %s", error, srpu_error_description_get(error));
+					goto error_out;
+				}
+
+				error = srpu_uci_element_value_get(uci_path_list[j], transform_uci_data_cb, &uci_value_list, &uci_value_list_size);
+				if (error) {
+					SRP_LOG_ERR("srpu_uci_element_value_get error (%d): %s", error, srpu_error_description_get(error));
+					goto error_out;
+				}
+
+				for (size_t k = 0; k < uci_value_list_size; k++) {
+					error = sr_set_item_str(session, xpath, uci_value_list[k], NULL, SR_EDIT_DEFAULT);
+					if (error) {
+						SRP_LOG_ERR("sr_set_item_str error (%d): %s", error, sr_strerror(error));
+						goto error_out;
+					}
+				}
+			}
+		}
+
+		error = sr_apply_changes(session, 0, 0);
+		if (error) {
+			SRP_LOG_ERR("sr_apply_changes error (%d): %s", error, sr_strerror(error));
+			goto error_out;
+		}
+	}
 
 	SRP_LOG_INFMSG("subscribing to module change");
 
