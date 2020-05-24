@@ -32,7 +32,7 @@ const char *srpu_error_description_get(srpu_error_e error)
 	}
 }
 
-int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list, size_t uci_section_list_size, const char ***uci_path_list, size_t *uci_path_list_size)
+int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list, size_t uci_section_list_size, char ***uci_path_list, size_t *uci_path_list_size)
 {
 	if (uci_config == NULL) {
 		return SRPU_ERR_ARGUMENT;
@@ -164,23 +164,6 @@ int srpu_uci_option_set(const char *uci_path, const char *uci_value, srpu_transf
 	return SRPU_ERR_OK;
 }
 
-int srpu_uci_option_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char **uci_value)
-{
-	if (uci_path == NULL) {
-		return SRPU_ERR_ARGUMENT;
-	}
-
-	if (uci_value == NULL) {
-		return SRPU_ERR_ARGUMENT;
-	}
-
-	// TODO: implement
-
-	*uci_value = strdup("dummy");
-
-	return SRPU_ERR_OK;
-}
-
 int srpu_uci_option_remove(const char *uci_path)
 {
 	if (uci_path == NULL) {
@@ -207,20 +190,6 @@ int srpu_uci_list_set(const char *uci_path, const char *uci_value, srpu_transfor
 	return SRPU_ERR_OK;
 }
 
-int srpu_uci_list_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char **uci_value_list, size_t *uci_value_list_size)
-{
-	if (uci_path == NULL) {
-		return SRPU_ERR_ARGUMENT;
-	}
-
-	*uci_value_list = NULL;
-	*uci_value_list_size = 0;
-
-	// TODO: implement
-
-	return SRPU_ERR_OK;
-}
-
 int srpu_uci_list_remove(const char *uci_path, const char *uci_value)
 {
 	if (uci_path == NULL) {
@@ -230,6 +199,20 @@ int srpu_uci_list_remove(const char *uci_path, const char *uci_value)
 	if (uci_value == NULL) {
 		return SRPU_ERR_ARGUMENT;
 	}
+
+	// TODO: implement
+
+	return SRPU_ERR_OK;
+}
+
+int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char ***uci_value_list, size_t *uci_value_list_size)
+{
+	if (uci_path == NULL) {
+		return SRPU_ERR_ARGUMENT;
+	}
+
+	*uci_value_list = NULL;
+	*uci_value_list_size = 0;
 
 	// TODO: implement
 

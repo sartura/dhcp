@@ -49,7 +49,7 @@ void srpu_cleanup(void);
 
 const char *srpu_error_description_get(srpu_error_e error);
 
-int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list, size_t uci_section_list_size, const char ***uci_path_list, size_t *uci_path_list_size);
+int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list, size_t uci_section_list_size, char ***uci_path_list, size_t *uci_path_list_size);
 
 int srpu_xpath_to_uci_path_convert(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, char **uci_path);
 int srpu_uci_to_xpath_path_convert(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, char **xpath);
@@ -60,10 +60,9 @@ int srpu_transfor_uci_data_cb_get(const char *uci, srpu_uci_xpath_uci_template_m
 int srpu_uci_section_create(const char *uci_path);
 int srpu_uci_section_delete(const char *uci_path);
 int srpu_uci_option_set(const char *uci_path, const char *uci_value, srpu_transform_data_cb transform_sysrepo_data_cb);
-int srpu_uci_option_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char **uci_value);
 int srpu_uci_option_remove(const char *uci_path);
 int srpu_uci_list_set(const char *uci_path, const char *uci_value, srpu_transform_data_cb transform_sysrepo_data_cb);
-int srpu_uci_list_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char **uci_value_list, size_t *uci_value_list_size);
 int srpu_uci_list_remove(const char *uci_path, const char *uci_value);
+int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char ***uci_value_list, size_t *uci_value_list_size);
 
 #endif /* SRPU_H_ONCE */
