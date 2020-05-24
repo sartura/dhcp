@@ -24,8 +24,16 @@
 
 #include <stdlib.h>
 
-// TODO: error codes as XM
-// TODO: function for error code to string
+typedef enum {
+#define SRPU_ERROR_TABLE                              \
+	XM(SRPU_ERR_OK, 0, "Success")                     \
+	XM(SRPU_ERR_ARGUMENT, -1, "Invalid argumnet")     \
+	XM(SRPU_ERR_NOT_EXISTS, -2, "Entry not in table") \
+	XM(SRPU_ERR_UCI, -3, "Internal UCI error")
+#define XM(ENUM, CODE, DESCRIPTION) ENUM = CODE,
+	SRPU_ERROR_TABLE
+#undef XM
+} srpu_error_e;
 
 typedef char *(*srpu_transform_data_cb)(const char *uci_value, void *private_data);
 
@@ -38,6 +46,8 @@ typedef struct {
 
 int srpu_init(void);
 void srpu_cleanup(void);
+
+const char *srpu_error_description_get(srpu_error_e error);
 
 int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list, size_t uci_section_list_size, const char ***uci_path_list, size_t *uci_path_list_size);
 

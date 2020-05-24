@@ -139,14 +139,16 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 			node_xpath = lyd_path(node);
 
 			error = srpu_xpath_to_uci_path_convert(node_xpath, dhcp_xpath_uci_uci_path_template_map, &uci_path);
-			if (error) {
-				SRP_LOG_ERRMSG("srpu_xpath_to_uci_path_convert error");
+			if (error && error != SRPU_ERR_NOT_EXISTS) {
+				SRP_LOG_ERR("srpu_xpath_to_uci_path_convert error (%d): %s", error, srpu_error_description_get(error));
 				goto out;
+			} else if (error == SRPU_ERR_NOT_EXISTS) {
+				continue;
 			}
 
 			error = srpu_transfor_sysrepo_data_cb_get(node_xpath, dhcp_xpath_uci_uci_path_template_map, &transform_sysrepo_data_cb);
 			if (error) {
-				SRP_LOG_ERRMSG("srpu_xpath_to_uci_path_convert error");
+				SRP_LOG_ERR("srpu_transfor_sysrepo_data_cb_get error (%d): %s", error, srpu_error_description_get(error));
 				goto out;
 			}
 
@@ -163,13 +165,13 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 				if (operation == SR_OP_CREATED) {
 					error = srpu_uci_section_create(uci_path);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_section_create (%s) error", uci_path);
+						SRP_LOG_ERR("srpu_uci_section_create error (%d): %s", error, srpu_error_description_get(error));
 						goto out;
 					}
 				} else if (operation == SR_OP_DELETED) {
 					error = srpu_uci_section_delete(uci_path);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_section_delete (%s) error", uci_path);
+						SRP_LOG_ERR("srpu_uci_section_delete error (%d): %s", error, srpu_error_description_get(error));
 						goto out;
 					}
 				}
@@ -177,13 +179,13 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 				if (operation == SR_OP_CREATED || operation == SR_OP_MODIFIED) {
 					error = srpu_uci_option_set(uci_path, node_value, transform_sysrepo_data_cb);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_option_set (%s) error", uci_path);
+						SRP_LOG_ERR("srpu_uci_option_set error (%d): %s", error, srpu_error_description_get(error));
 						goto out;
 					}
 				} else if (operation == SR_OP_DELETED) {
 					error = srpu_uci_option_remove(uci_path);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_option_remove (%s) error", uci_path);
+						SRP_LOG_ERR("srpu_uci_option_remove error (%d): %s", error, srpu_error_description_get(error));
 						goto out;
 					}
 				}
@@ -192,20 +194,20 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 					if (prev_value) {
 						error = srpu_uci_list_remove(uci_path, prev_value);
 						if (error) {
-							SRP_LOG_ERR("srpu_uci_list_remove (%s) error", uci_path);
+							SRP_LOG_ERR("srpu_uci_list_remove error (%d): %s", error, srpu_error_description_get(error));
 							goto out;
 						}
 					}
 
 					error = srpu_uci_list_set(uci_path, node_value, transform_sysrepo_data_cb);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_list_set (%s) error", uci_path);
+						SRP_LOG_ERR("srpu_uci_list_set error (%d): %s", error, srpu_error_description_get(error));
 						goto out;
 					}
 				} else if (operation == SR_OP_DELETED) {
 					error = srpu_uci_list_remove(uci_path, node_value);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_list_remove (%s) error", uci_path);
+						SRP_LOG_ERR("srpu_uci_list_remove error (%d): %s", error, srpu_error_description_get(error));
 						goto out;
 					}
 				}
