@@ -119,8 +119,16 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 						SRP_LOG_ERR("sr_set_item_str error (%d): %s", error, sr_strerror(error));
 						goto error_out;
 					}
+
+					free(uci_value_list[k]);
 				}
+
+				free(uci_path_list[j]);
+				free(xpath);
+				free(uci_value_list);
 			}
+
+			free(uci_path_list);
 		}
 
 		error = sr_apply_changes(session, 0, 0);
@@ -140,7 +148,7 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 
 	// TODO: subscribe to get items
 
-	return SR_ERR_OK;
+	goto out;
 
 error_out:
 	error = sr_unsubscribe(subscrption);
@@ -148,7 +156,21 @@ error_out:
 		SRP_LOG_ERR("sr_unsubscribe error (%d): %s", error, sr_strerror(error));
 	}
 
-	return SR_ERR_CALLBACK_FAILED;
+out:
+	free(xpath);
+	for (size_t i = 0; i < uci_path_list_size; i++) {
+		free(uci_path_list[i]);
+	}
+
+	free(uci_path_list);
+
+	for (size_t i = 0; i < uci_value_list_size; i++) {
+		free(uci_value_list[i]);
+	}
+
+	free(uci_value_list);
+
+	return error ? SR_ERR_CALLBACK_FAILED : SR_ERR_OK;
 }
 
 void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data)
