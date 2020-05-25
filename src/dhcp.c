@@ -8,6 +8,7 @@
 #include <sysrepo/xpath.h>
 
 #include "srpu.h"
+#include "utils/memory.h"
 
 #define ARRAY_SIZE(X) (sizeof((X)) / sizeof((X)[0]))
 
@@ -39,7 +40,7 @@ srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_uci_path_template_map[] = {
 };
 
 static const char *dhcp_uci_sections[] = {"dhcp", "domain"};
-static const char *network_uci_sections[] = {"network", "interface"};
+static const char *network_uci_sections[] = {"interface"};
 
 static struct {
 	const char *uci_file;
@@ -65,6 +66,12 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 	sr_subscription_ctx_t *subscrption = NULL;
 
 	*private_data = NULL;
+
+	error = srpu_init();
+	if (error) {
+		SRP_LOG_ERR("srpu_init error (%d): %s", error, srpu_error_description_get(error));
+		goto error_out;
+	}
 
 	SRP_LOG_INFMSG("start session to startup datastore");
 
@@ -98,6 +105,8 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 					SRP_LOG_ERR("srpu_uci_to_xpath_path_convert error (%d): %s", error, srpu_error_description_get(error));
 					goto error_out;
 				} else if (error == SRPU_ERR_NOT_EXISTS) {
+					FREE_SAFE(uci_path_list[j]);
+					FREE_SAFE(xpath);
 					continue;
 				}
 
@@ -120,15 +129,15 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 						goto error_out;
 					}
 
-					free(uci_value_list[k]);
+					FREE_SAFE(uci_value_list[k]);
 				}
 
-				free(uci_path_list[j]);
-				free(xpath);
-				free(uci_value_list);
+				FREE_SAFE(uci_path_list[j]);
+				FREE_SAFE(xpath);
+				FREE_SAFE(uci_value_list);
 			}
 
-			free(uci_path_list);
+			FREE_SAFE(uci_path_list);
 		}
 
 		error = sr_apply_changes(session, 0, 0);
@@ -151,30 +160,38 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 	goto out;
 
 error_out:
+	FREE_SAFE(xpath);
+
+	for (size_t i = 0; i < uci_path_list_size; i++) {
+		FREE_SAFE(uci_path_list[i]);
+	}
+
+	FREE_SAFE(uci_path_list);
+
+	for (size_t i = 0; i < uci_value_list_size; i++) {
+		FREE_SAFE(uci_value_list[i]);
+	}
+
+	FREE_SAFE(uci_value_list);
+
 	error = sr_unsubscribe(subscrption);
 	if (error) {
 		SRP_LOG_ERR("sr_unsubscribe error (%d): %s", error, sr_strerror(error));
 	}
 
 out:
-	free(xpath);
-	for (size_t i = 0; i < uci_path_list_size; i++) {
-		free(uci_path_list[i]);
+
+	if (sysrepocfg_DS_empty_check) {
+		pclose(sysrepocfg_DS_empty_check);
 	}
-
-	free(uci_path_list);
-
-	for (size_t i = 0; i < uci_value_list_size; i++) {
-		free(uci_value_list[i]);
-	}
-
-	free(uci_value_list);
 
 	return error ? SR_ERR_CALLBACK_FAILED : SR_ERR_OK;
 }
 
 void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data)
 {
+	srpu_cleanup();
+
 	sr_session_ctx_t *startup_session = (sr_session_ctx_t *) private_data;
 
 	if (startup_session) {
@@ -303,16 +320,14 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 				}
 			}
 
-			free(uci_path);
-			uci_path = NULL;
-			free(node_xpath);
-			node_xpath = NULL;
+			FREE_SAFE(uci_path);
+			FREE_SAFE(node_xpath);
 		}
 	}
 
 out:
-	free(node_xpath);
-	free(uci_path);
+	FREE_SAFE(node_xpath);
+	FREE_SAFE(uci_path);
 	sr_free_change_iter(dhcp_server_change_iter);
 
 	return error ? SR_ERR_CALLBACK_FAILED : SR_ERR_OK;
