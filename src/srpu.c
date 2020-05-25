@@ -1,20 +1,39 @@
+#include <stdio.h>
+
 #include <stdlib.h>
 #include <string.h>
 
 #include <uci.h>
 
 #include "srpu.h"
+#include "utils/memory.h"
+
+static struct uci_context *srpu_uci_context;
 
 int srpu_init(void)
 {
-	// TODO: implement
+	int error = SRPU_ERR_OK;
+
+	srpu_uci_context = uci_alloc_context();
+	if (srpu_uci_context == NULL) {
+		return SRPU_ERR_UCI;
+	}
+
+	error = uci_set_confdir(srpu_uci_context, "/opt/sysrepofs/etc/config"); // TODO: in make configurable in CMake
+	if (error) {
+		srpu_cleanup();
+		return SRPU_ERR_UCI;
+	}
 
 	return SRPU_ERR_OK;
 }
 
 void srpu_cleanup(void)
 {
-	// TODO: implement
+	if (srpu_uci_context) {
+		uci_free_context(srpu_uci_context);
+		srpu_uci_context = NULL;
+	}
 }
 
 const char *srpu_error_description_get(srpu_error_e error)
@@ -34,6 +53,25 @@ const char *srpu_error_description_get(srpu_error_e error)
 
 int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list, size_t uci_section_list_size, char ***uci_path_list, size_t *uci_path_list_size)
 {
+	int error = SRPU_ERR_OK;
+	struct uci_package *package = NULL;
+	struct uci_element *element_section = NULL;
+	struct uci_section *section = NULL;
+	char *section_name = NULL;
+	size_t section_name_size = 0;
+	struct uci_element *element_option = NULL;
+	struct uci_option *option = NULL;
+	char **uci_path_list_tmp = NULL;
+	size_t uci_path_list_size_tmp = 0;
+	size_t uci_path_size = 0;
+	size_t anonymous_section_index = 0;
+	bool anonymous_section_exists = 0;
+	size_t anonymous_section_list_size = 0;
+	struct anonymous_section {
+		char *type;
+		size_t index;
+	} *anonymous_section_list = NULL;
+
 	if (uci_config == NULL) {
 		return SRPU_ERR_ARGUMENT;
 	}
@@ -46,10 +84,71 @@ int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list
 		return SRPU_ERR_ARGUMENT;
 	}
 
-	// TODO: implement
+	error = uci_load(srpu_uci_context, uci_config, &package);
+	if (error) {
+		return SRPU_ERR_UCI;
+	}
 
-	*uci_path_list = NULL;
-	*uci_path_list_size = 0;
+	uci_foreach_element(&package->sections, element_section)
+	{
+		section = uci_to_section(element_section);
+		for (size_t i = 0; i < uci_section_list_size; i++) {
+			if (strcmp(section->type, uci_section_list[i]) == 0) {
+				if (section->anonymous) { // hande name conversion from cfgXXXXX to @section_type[index] for anonymous sections
+					anonymous_section_index = 0;
+					anonymous_section_exists = false;
+					for (size_t j = 0; j < anonymous_section_list_size; j++) {
+						if (strcmp(anonymous_section_list[j].type, section->type) == 0) { // get the next index for the anonymous section
+							anonymous_section_index = anonymous_section_list[j].index++;
+							anonymous_section_exists = true;
+						}
+					}
+
+					if (anonymous_section_exists == false) { // add the anonymous section to the list if first occurrence
+						anonymous_section_list = xrealloc(anonymous_section_list, (anonymous_section_list_size + 1) * sizeof(struct anonymous_section));
+						anonymous_section_list[anonymous_section_list_size].type = strdup(section->type);
+						anonymous_section_list[anonymous_section_list_size].index = 0;
+						anonymous_section_index = anonymous_section_list[anonymous_section_list_size].index++;
+						anonymous_section_list_size++;
+					}
+
+					section_name_size = strlen(section->type) + 1 + 2 + 20 + 1;
+					section_name = xmalloc(section_name_size);
+					snprintf(section_name, section_name_size, "@%s[%zu]", section->type, anonymous_section_index);
+				} else {
+					section_name = xstrdup(section->e.name);
+				}
+
+				uci_foreach_element(&section->options, element_option)
+				{
+					option = uci_to_option(element_option);
+
+					uci_path_list_tmp = xrealloc(uci_path_list_tmp, (uci_path_list_size_tmp + 1) * sizeof(char *));
+
+					uci_path_size = strlen(uci_config) + 1 + strlen(section_name) + 1 + strlen(option->e.name) + 1;
+					uci_path_list_tmp[uci_path_list_size_tmp] = xmalloc(uci_path_size);
+					snprintf(uci_path_list_tmp[uci_path_list_size_tmp], uci_path_size, "%s.%s.%s", uci_config, section_name, option->e.name);
+
+					printf("%s\n", uci_path_list_tmp[uci_path_list_size_tmp]);
+
+					uci_path_list_size_tmp++;
+				}
+
+				FREE_SAFE(section_name);
+
+				break;
+			}
+		}
+	}
+
+	*uci_path_list = uci_path_list_tmp;
+	*uci_path_list_size = uci_path_list_size_tmp;
+
+	for (size_t i = 0; i < anonymous_section_list_size; i++) {
+		FREE_SAFE(anonymous_section_list[i].type);
+	}
+
+	FREE_SAFE(anonymous_section_list);
 
 	return SRPU_ERR_OK;
 }
