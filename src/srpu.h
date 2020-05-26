@@ -25,17 +25,21 @@
 #include <stdlib.h>
 
 typedef enum {
-#define SRPU_ERROR_TABLE                              \
-	XM(SRPU_ERR_OK, 0, "Success")                     \
-	XM(SRPU_ERR_ARGUMENT, -1, "Invalid argumnet")     \
-	XM(SRPU_ERR_NOT_EXISTS, -2, "Entry not in table") \
-	XM(SRPU_ERR_UCI, -3, "Internal UCI error")
+#define SRPU_ERROR_TABLE                                                  \
+	XM(SRPU_ERR_OK, 0, "Success")                                         \
+	XM(SRPU_ERR_ARGUMENT, -1, "Invalid argumnet")                         \
+	XM(SRPU_ERR_NOT_FOUND, -2, "Entry not found in table")                \
+	XM(SRPU_ERR_UCI, -3, "Internal UCI error")                            \
+	XM(SRPU_ERR_XPATH, -4, "Internal XPath error")                        \
+	XM(SRPU_ERR_TABLE_ENTRY, -5, "Table doesn't contain a path template") \
+	XM(SRPU_ERR_SECTION_NAME, -6, "UCI section name is missing")          \
+	XM(SRPU_ERR_TRANSFORM_CB, -7, "Tranform data callback error")
 #define XM(ENUM, CODE, DESCRIPTION) ENUM = CODE,
 	SRPU_ERROR_TABLE
 #undef XM
 } srpu_error_e;
 
-typedef char *(*srpu_transform_data_cb)(const char *uci_value, void *private_data);
+typedef char *(*srpu_transform_data_cb)(const char *uci_value);
 
 typedef struct {
 	const char *xpath_template;
@@ -51,18 +55,18 @@ const char *srpu_error_description_get(srpu_error_e error);
 
 int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list, size_t uci_section_list_size, char ***uci_path_list, size_t *uci_path_list_size);
 
-int srpu_xpath_to_uci_path_convert(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, char **uci_path);
-int srpu_uci_to_xpath_path_convert(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, char **xpath);
+int srpu_xpath_to_uci_path_convert(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, size_t xpath_uci_template_map_size, char **uci_path);
+int srpu_uci_to_xpath_path_convert(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, char **xpath);
 
-int srpu_transfor_sysrepo_data_cb_get(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, srpu_transform_data_cb *transform_sysrepo_data_cb);
-int srpu_transfor_uci_data_cb_get(const char *uci, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, srpu_transform_data_cb *transform_uci_data_cb);
+int srpu_transform_sysrepo_data_cb_get(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, size_t xpath_uci_template_map_size, srpu_transform_data_cb *transform_sysrepo_data_cb);
+int srpu_transform_uci_data_cb_get(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, srpu_transform_data_cb *transform_uci_data_cb);
 
 int srpu_uci_section_create(const char *uci_path);
 int srpu_uci_section_delete(const char *uci_path);
-int srpu_uci_option_set(const char *uci_path, const char *uci_value, srpu_transform_data_cb transform_sysrepo_data_cb);
+int srpu_uci_option_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb);
 int srpu_uci_option_remove(const char *uci_path);
-int srpu_uci_list_set(const char *uci_path, const char *uci_value, srpu_transform_data_cb transform_sysrepo_data_cb);
-int srpu_uci_list_remove(const char *uci_path, const char *uci_value);
-int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char ***uci_value_list, size_t *uci_value_list_size);
+int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb);
+int srpu_uci_list_remove(const char *uci_path, const char *value);
+int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char ***value_list, size_t *value_list_size);
 
 #endif /* SRPU_H_ONCE */
