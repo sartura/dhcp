@@ -21,7 +21,7 @@ void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data);
 static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_name, const char *xpath, sr_event_t event, uint32_t request_id, void *private_data);
 
 srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_uci_path_template_map[] = {
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/name", "dhcp.%s", NULL, NULL},
+	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']", "dhcp.%s", NULL, NULL},
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/enable", "dhcp.%s.ignore", NULL, NULL},
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface", "dhcp.%s.interface", NULL, NULL},
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start", "dhcp.%s.start", NULL, NULL},
@@ -100,17 +100,17 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 			}
 
 			for (size_t j = 0; j < uci_path_list_size; j++) {
-				error = srpu_uci_to_xpath_path_convert(uci_path_list[j], dhcp_xpath_uci_uci_path_template_map, &xpath);
-				if (error && error != SRPU_ERR_NOT_EXISTS) {
+				error = srpu_uci_to_xpath_path_convert(uci_path_list[j], dhcp_xpath_uci_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_uci_path_template_map), &xpath);
+				if (error && error != SRPU_ERR_NOT_FOUND) {
 					SRP_LOG_ERR("srpu_uci_to_xpath_path_convert error (%d): %s", error, srpu_error_description_get(error));
 					goto error_out;
-				} else if (error == SRPU_ERR_NOT_EXISTS) {
+				} else if (error == SRPU_ERR_NOT_FOUND) {
 					FREE_SAFE(uci_path_list[j]);
 					FREE_SAFE(xpath);
 					continue;
 				}
 
-				error = srpu_transfor_uci_data_cb_get(uci_path_list[j], dhcp_xpath_uci_uci_path_template_map, &transform_uci_data_cb);
+				error = srpu_transform_uci_data_cb_get(uci_path_list[j], dhcp_xpath_uci_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_uci_path_template_map), &transform_uci_data_cb);
 				if (error) {
 					SRP_LOG_ERR("srpu_transfor_uci_data_cb_get error (%d): %s", error, srpu_error_description_get(error));
 					goto error_out;
@@ -245,15 +245,15 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 		while (sr_get_change_tree_next(session, dhcp_server_change_iter, &operation, &node, &prev_value, &prev_list, &prev_default) == SR_ERR_OK) {
 			node_xpath = lyd_path(node);
 
-			error = srpu_xpath_to_uci_path_convert(node_xpath, dhcp_xpath_uci_uci_path_template_map, &uci_path);
-			if (error && error != SRPU_ERR_NOT_EXISTS) {
+			error = srpu_xpath_to_uci_path_convert(node_xpath, dhcp_xpath_uci_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_uci_path_template_map), &uci_path);
+			if (error && error != SRPU_ERR_NOT_FOUND) {
 				SRP_LOG_ERR("srpu_xpath_to_uci_path_convert error (%d): %s", error, srpu_error_description_get(error));
 				goto out;
-			} else if (error == SRPU_ERR_NOT_EXISTS) {
+			} else if (error == SRPU_ERR_NOT_FOUND) {
 				continue;
 			}
 
-			error = srpu_transfor_sysrepo_data_cb_get(node_xpath, dhcp_xpath_uci_uci_path_template_map, &transform_sysrepo_data_cb);
+			error = srpu_transform_sysrepo_data_cb_get(node_xpath, dhcp_xpath_uci_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_uci_path_template_map), &transform_sysrepo_data_cb);
 			if (error) {
 				SRP_LOG_ERR("srpu_transfor_sysrepo_data_cb_get error (%d): %s", error, srpu_error_description_get(error));
 				goto out;
