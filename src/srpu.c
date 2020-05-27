@@ -461,6 +461,7 @@ int srpu_uci_option_set(const char *uci_path, const char *value, srpu_transform_
 
 	error = uci_element_set(uci_data, false);
 	if (error) {
+		error = SRPU_ERR_UCI;
 		goto out;
 	}
 
@@ -468,7 +469,7 @@ out:
 	FREE_SAFE(transform_value);
 	FREE_SAFE(uci_data);
 
-	return error ? SRPU_ERR_UCI : SRPU_ERR_OK;
+	return error;
 }
 
 int srpu_uci_option_remove(const char *uci_path)
@@ -513,6 +514,7 @@ int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_da
 
 	error = uci_element_set(uci_data, true);
 	if (error) {
+		error = SRPU_ERR_UCI;
 		goto out;
 	}
 
@@ -520,7 +522,7 @@ out:
 	FREE_SAFE(transform_value);
 	FREE_SAFE(uci_data);
 
-	return error ? SRPU_ERR_UCI : SRPU_ERR_OK;
+	return error;
 }
 
 int srpu_uci_list_remove(const char *uci_path, const char *value)
@@ -630,6 +632,7 @@ int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb tran
 	if (uci_ptr.o->type == UCI_TYPE_STRING) {
 		value = transform_uci_data_cb ? transform_uci_data_cb(uci_ptr.o->v.string) : xstrdup(uci_ptr.o->v.string);
 		if (value == NULL) {
+			error = SRPU_ERR_TRANSFORM_CB;
 			goto error_out;
 		}
 
