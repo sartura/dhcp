@@ -23,6 +23,7 @@
 #define SRPU_H_ONCE
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef enum {
 #define SRPU_ERROR_TABLE                                                  \
@@ -33,7 +34,9 @@ typedef enum {
 	XM(SRPU_ERR_XPATH, -4, "Internal XPath error")                        \
 	XM(SRPU_ERR_TABLE_ENTRY, -5, "Table doesn't contain a path template") \
 	XM(SRPU_ERR_SECTION_NAME, -6, "UCI section name is missing")          \
-	XM(SRPU_ERR_TRANSFORM_CB, -7, "Tranform data callback error")
+	XM(SRPU_ERR_TRANSFORM_CB, -7, "Tranform data callback error")         \
+	XM(SRPU_ERR_UCI_FILE, -8, "Error opening uci config file")
+
 #define XM(ENUM, CODE, DESCRIPTION) ENUM = CODE,
 	SRPU_ERROR_TABLE
 #undef XM
@@ -44,6 +47,7 @@ typedef char *(*srpu_transform_data_cb)(const char *uci_value);
 typedef struct {
 	const char *xpath_template;
 	const char *uci_path_template;
+	const char *uci_section_type;
 	srpu_transform_data_cb transform_sysrepo_data_cb;
 	srpu_transform_data_cb transform_uci_data_cb;
 } srpu_uci_xpath_uci_template_map_t;
@@ -60,13 +64,17 @@ int srpu_uci_to_xpath_path_convert(const char *uci_path, srpu_uci_xpath_uci_temp
 
 int srpu_transform_sysrepo_data_cb_get(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, size_t xpath_uci_template_map_size, srpu_transform_data_cb *transform_sysrepo_data_cb);
 int srpu_transform_uci_data_cb_get(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, srpu_transform_data_cb *transform_uci_data_cb);
+int srpu_uci_section_type_get(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, const char **uci_section_type);
 
-int srpu_uci_section_create(const char *uci_path);
+int srpu_uci_section_create(const char *uci_path, const char *uci_section_type);
 int srpu_uci_section_delete(const char *uci_path);
 int srpu_uci_option_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb);
 int srpu_uci_option_remove(const char *uci_path);
 int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb);
 int srpu_uci_list_remove(const char *uci_path, const char *value);
 int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char ***value_list, size_t *value_list_size);
+
+bool srpu_uci_section_exists(const char *uci_package_name, const char *uci_section_name);
+int srpu_uci_to_file_sync(const char *uci_config_file);
 
 #endif /* SRPU_H_ONCE */

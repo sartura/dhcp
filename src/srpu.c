@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,8 +12,8 @@
 static char *path_from_template_get(const char *template, const char *data);
 static char *xpath_key_value_get(const char *xpath);
 static char *uci_section_name_get(const char *uci_path);
-static int uci_element_set(const char *uci_data, bool is_uci_list);
-static int uci_element_delete(const char *uci_data, bool is_uci_list);
+static int uci_element_set(char *uci_data, bool is_uci_list);
+static int uci_element_delete(char *uci_data, bool is_uci_list);
 
 static struct uci_context *uci_context;
 
@@ -335,6 +335,47 @@ int srpu_transform_uci_data_cb_get(const char *uci_path, srpu_uci_xpath_uci_temp
 	return SRPU_ERR_OK;
 }
 
+int srpu_uci_section_type_get(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, const char **uci_section_type)
+{
+	char *uci_section_name = NULL;
+	char *uci_path_tmp = NULL;
+	const char *uci_section_type_tmp = NULL;
+
+	if (uci_path == NULL) {
+		return SRPU_ERR_ARGUMENT;
+	}
+
+	if (uci_xpath_template_map == NULL) {
+		return SRPU_ERR_ARGUMENT;
+	}
+
+	// get the section name for uci_path
+	uci_section_name = uci_section_name_get(uci_path);
+
+	// find the table entry that matches the uci path for the found uci section
+	for (size_t i = 0; i < uci_xpath_template_map_size; i++) {
+		if (uci_xpath_template_map[i].uci_path_template == NULL) {
+			FREE_SAFE(uci_section_name);
+			return SRPU_ERR_TABLE_ENTRY;
+		}
+
+		uci_path_tmp = path_from_template_get(uci_xpath_template_map[i].uci_path_template, uci_section_name);
+		if (strcmp(uci_path, uci_path_tmp) == 0) {
+			uci_section_type_tmp = uci_xpath_template_map[i].uci_section_type;
+			break;
+		}
+
+		FREE_SAFE(uci_path_tmp);
+	}
+
+	*uci_section_type = uci_section_type_tmp;
+
+	FREE_SAFE(uci_path_tmp);
+	FREE_SAFE(uci_section_name);
+
+	return SRPU_ERR_OK;
+}
+
 static char *path_from_template_get(const char *template, const char *data)
 {
 	char *path = NULL;
@@ -383,6 +424,10 @@ static char *uci_section_name_get(const char *uci_path)
 	char *uci_section_name = NULL;
 	size_t uci_section_name_size = 0;
 
+	if (uci_path == NULL) {
+		return NULL;
+	}
+
 	uci_section_name_begin = strchr(uci_path, '.');
 	if (uci_section_name_begin == NULL) {
 		return NULL;
@@ -403,36 +448,58 @@ static char *uci_section_name_get(const char *uci_path)
 	return uci_section_name;
 }
 
-int srpu_uci_section_create(const char *uci_path)
+int srpu_uci_section_create(const char *uci_path, const char *uci_section_type)
 {
 	int error = SRPU_ERR_OK;
+	size_t uci_data_size = 0;
+	char *uci_data = NULL;
 
 	if (uci_path == NULL) {
 		return SRPU_ERR_ARGUMENT;
 	}
 
-	error = uci_element_set(uci_path, false);
-	if (error) {
-		return SRPU_ERR_UCI;
+	if (uci_section_type == NULL) {
+		return SRPU_ERR_ARGUMENT;
 	}
 
-	return SRPU_ERR_OK;
+	uci_data_size = strlen(uci_path) + 1 + strlen(uci_section_type) + 1;
+	uci_data = xcalloc(1, uci_data_size);
+	snprintf(uci_data, uci_data_size, "%s=%s", uci_path, uci_section_type);
+
+	printf("%s\n", uci_data);
+
+	error = uci_element_set(uci_data, false);
+	if (error) {
+		error = SRPU_ERR_UCI;
+		goto out;
+	}
+
+out:
+	FREE_SAFE(uci_data);
+
+	return error;
 }
 
 int srpu_uci_section_delete(const char *uci_path)
 {
 	int error = SRPU_ERR_OK;
+	char *uci_data = NULL;
 
 	if (uci_path == NULL) {
 		return SRPU_ERR_ARGUMENT;
 	}
 
-	error = uci_element_delete(uci_path, false);
+	uci_data = xstrdup(uci_path);
+	error = uci_element_delete(uci_data, false);
 	if (error) {
-		return SRPU_ERR_UCI;
+		error = SRPU_ERR_UCI;
+		goto out;
 	}
 
-	return SRPU_ERR_OK;
+out:
+	FREE_SAFE(uci_data);
+
+	return error;
 }
 
 int srpu_uci_option_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb)
@@ -475,17 +542,23 @@ out:
 int srpu_uci_option_remove(const char *uci_path)
 {
 	int error = 0;
+	char *uci_data = NULL;
 
 	if (uci_path == NULL) {
 		return SRPU_ERR_ARGUMENT;
 	}
 
-	error = uci_element_delete(uci_path, false);
+	uci_data = xstrdup(uci_path);
+	error = uci_element_delete(uci_data, false);
 	if (error) {
-		return SRPU_ERR_UCI;
+		error = SRPU_ERR_UCI;
+		goto out;
 	}
 
-	return SRPU_ERR_OK;
+out:
+	FREE_SAFE(uci_data);
+
+	return error;
 }
 
 int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb)
@@ -545,18 +618,24 @@ int srpu_uci_list_remove(const char *uci_path, const char *value)
 
 	error = uci_element_delete(uci_data, true);
 	if (error) {
-		return SRPU_ERR_UCI;
+		error = SRPU_ERR_UCI;
+		goto out;
 	}
 
-	return SRPU_ERR_OK;
+out:
+	FREE_SAFE(uci_data);
+
+	return error;
 }
 
-static int uci_element_set(const char *uci_data, bool is_uci_list)
+static int uci_element_set(char *uci_data, bool is_uci_list)
 {
 	int error = 0;
 	struct uci_ptr uci_ptr = {0};
 
-	error = uci_lookup_ptr(uci_context, &uci_ptr, (char *) uci_data, true);
+	printf("%s\n", uci_data);
+
+	error = uci_lookup_ptr(uci_context, &uci_ptr, uci_data, true);
 	if (error) {
 		return -1;
 	}
@@ -579,19 +658,20 @@ static int uci_element_set(const char *uci_data, bool is_uci_list)
 	return 0;
 }
 
-static int uci_element_delete(const char *uci_data, bool is_uci_list)
+static int uci_element_delete(char *uci_data, bool is_uci_list)
 {
 	int error = 0;
 	struct uci_ptr uci_ptr = {0};
 
-	error = uci_lookup_ptr(uci_context, &uci_ptr, (char *) uci_data, true);
+	error = uci_lookup_ptr(uci_context, &uci_ptr, uci_data, true);
 	if (error) {
 		return -1;
 	}
 
-	error = is_uci_list ? uci_del_list(uci_context, &uci_ptr) : uci_delete(uci_context, &uci_ptr);
-	if (error) {
-		return -1;
+	if (is_uci_list) {
+		uci_del_list(uci_context, &uci_ptr);
+	} else {
+		uci_delete(uci_context, &uci_ptr);
 	}
 
 	error = uci_save(uci_context, uci_ptr.p);
@@ -671,4 +751,71 @@ error_out:
 out:
 
 	return error ? SRPU_ERR_TRANSFORM_CB : SRPU_ERR_OK;
+}
+
+bool srpu_uci_section_exists(const char *uci_package_name, const char *uci_section_name)
+{
+	struct uci_package *uci_package = NULL;
+
+	if (uci_package_name == NULL) {
+		return false;
+	}
+
+	if (uci_section_name == NULL) {
+		return false;
+	}
+
+	uci_package = uci_lookup_package(uci_context, uci_package_name);
+	if (uci_package == NULL) {
+		return false;
+	}
+
+	if (uci_lookup_section(uci_context, uci_package, uci_section_name)) {
+		return true;
+	}
+
+	return false;
+}
+
+int srpu_uci_to_file_sync(const char *uci_config_file)
+{
+	int error = 0;
+	size_t uci_file_path_size = 0;
+	char *uci_file_path = NULL;
+	FILE *uci_config_fp = NULL;
+	struct uci_package *uci_package = NULL;
+
+	if (uci_config_file == NULL) {
+		return SRPU_ERR_ARGUMENT;
+	}
+
+	uci_file_path_size = strlen(uci_context->confdir) + 1 + strlen(uci_config_file) + 1;
+	uci_file_path = calloc(1, uci_file_path_size);
+	snprintf(uci_file_path, uci_file_path_size, "%s/%s", uci_context->confdir, uci_config_file);
+
+	uci_config_fp = fopen(uci_file_path, "w+");
+	if (uci_config_fp == NULL) {
+		error = SRPU_ERR_UCI_FILE;
+		goto out;
+	}
+
+	uci_package = uci_lookup_package(uci_context, uci_config_file);
+	if (uci_package == NULL) {
+		error = SRPU_ERR_UCI;
+		goto out;
+	}
+
+	error = uci_export(uci_context, uci_config_fp, uci_package, false);
+	if (error) {
+		error = SRPU_ERR_UCI;
+		goto out;
+	}
+
+out:
+	FREE_SAFE(uci_file_path);
+	if (uci_config_fp) {
+		fclose(uci_config_fp);
+	}
+
+	return error;
 }
