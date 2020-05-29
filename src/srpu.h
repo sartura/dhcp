@@ -80,7 +80,7 @@ int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_da
 int srpu_uci_list_remove(const char *uci_path, const char *value);
 int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, void *private_data, char ***value_list, size_t *value_list_size);
 
-void srpu_uci_revert(const char *uci_config);
+int srpu_uci_revert(const char *uci_config);
 int srpu_uci_commit(const char *uci_config);
 
 #endif /* SRPU_H_ONCE */

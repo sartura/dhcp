@@ -597,7 +597,7 @@ int srpu_uci_option_set(const char *uci_path, const char *value, srpu_transform_
 
 	transform_value = transform_sysrepo_data_cb ? transform_sysrepo_data_cb(value, private_data) : xstrdup(value);
 	if (transform_value == NULL) {
-		return SRPU_ERR_TRANSFORM_CB;
+		goto out;
 	}
 
 	uci_data_size = strlen(uci_path) + 1 + strlen(transform_value) + 1;
@@ -656,7 +656,7 @@ int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_da
 
 	transform_value = transform_sysrepo_data_cb ? transform_sysrepo_data_cb(value, private_data) : xstrdup(value);
 	if (transform_value == NULL) {
-		return SRPU_ERR_TRANSFORM_CB;
+		goto out;
 	}
 
 	uci_data_size = strlen(uci_path) + 1 + strlen(transform_value) + 1;
@@ -721,11 +721,6 @@ static int uci_element_set(char *uci_data, bool is_uci_list)
 		return -1;
 	}
 
-	error = uci_save(uci_context, uci_ptr.p);
-	if (error) {
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -745,17 +740,13 @@ static int uci_element_delete(char *uci_data, bool is_uci_list)
 		uci_delete(uci_context, &uci_ptr);
 	}
 
-	error = uci_save(uci_context, uci_ptr.p);
-	if (error) {
-		return -1;
-	}
-
 	return 0;
 }
 
 int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, void *private_data, char ***value_list, size_t *value_list_size)
 {
 	int error = 0;
+	char *uci_path_tmp = NULL;
 	struct uci_ptr uci_ptr = {0};
 	char *value = NULL;
 	struct uci_element *element = NULL;
@@ -767,19 +758,19 @@ int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb tran
 		return SRPU_ERR_ARGUMENT;
 	}
 
+	uci_path_tmp = xstrdup(uci_path);
 	*value_list = NULL;
 	*value_list_size = 0;
 
 	error = uci_lookup_ptr(uci_context, &uci_ptr, (char *) uci_path, true);
-	if (error) {
+	if (error || (uci_ptr.flags & UCI_LOOKUP_COMPLETE) == 0) {
 		return SRPU_ERR_UCI;
 	}
 
 	if (uci_ptr.o->type == UCI_TYPE_STRING) {
 		value = transform_uci_data_cb ? transform_uci_data_cb(uci_ptr.o->v.string, private_data) : xstrdup(uci_ptr.o->v.string);
 		if (value == NULL) {
-			error = SRPU_ERR_TRANSFORM_CB;
-			goto error_out;
+			goto out;
 		}
 
 		value_list_tmp = xrealloc(value_list_tmp, (value_list_size_tmp + 1) * sizeof(char *));
@@ -791,9 +782,9 @@ int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb tran
 		{
 			option = uci_to_option(element);
 
-			value = transform_uci_data_cb ? transform_uci_data_cb(option->v.string, private_data) : xstrdup(option->v.string);
+			value = transform_uci_data_cb ? transform_uci_data_cb(option->e.name, private_data) : xstrdup(option->e.name);
 			if (value == NULL) {
-				goto error_out;
+				continue;
 			}
 
 			value_list_tmp = xrealloc(value_list_tmp, (value_list_size_tmp + 1) * sizeof(char *));
@@ -805,57 +796,68 @@ int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb tran
 	*value_list = value_list_tmp;
 	*value_list_size = value_list_size_tmp;
 
-	goto out;
-
-error_out:
-	for (size_t i = 0; i < value_list_size_tmp; i++) {
-		FREE_SAFE(value_list_tmp[i]);
-	}
-
-	FREE_SAFE(value_list_tmp);
-
 out:
+	FREE_SAFE(uci_path_tmp);
 
 	return error ? SRPU_ERR_TRANSFORM_CB : SRPU_ERR_OK;
 }
 
-void srpu_uci_revert(const char *uci_config)
+int srpu_uci_revert(const char *uci_config)
 {
-	char *uci_config_tmp = xstrdup(uci_config);
+	int error = SRPU_ERR_OK;
+	char *uci_config_tmp = NULL;
 	struct uci_ptr uci_ptr = {0};
 
-	if (uci_lookup_ptr(uci_context, &uci_ptr, uci_config_tmp, true) == UCI_OK && (uci_ptr.flags & UCI_LOOKUP_COMPLETE)) {
-		uci_revert(uci_context, &uci_ptr);
+	if (uci_config == NULL) {
+		error = SRPU_ERR_UCI;
+		goto out;
 	}
 
+	uci_config_tmp = xstrdup(uci_config);
+
+	error = uci_lookup_ptr(uci_context, &uci_ptr, uci_config_tmp, true);
+	if (error || (uci_ptr.flags & UCI_LOOKUP_COMPLETE) == 0) {
+		error = SRPU_ERR_UCI;
+		goto out;
+	}
+
+	error = uci_revert(uci_context, &uci_ptr);
+	if (error) {
+		error = SRPU_ERR_UCI;
+		goto out;
+	}
+
+out:
 	FREE_SAFE(uci_config_tmp);
+	return error;
 }
 
 int srpu_uci_commit(const char *uci_config)
 {
-	int error = 0;
-	struct uci_package *uci_package = NULL;
+	int error = SRPU_ERR_OK;
+	char *uci_config_tmp = NULL;
+	struct uci_ptr uci_ptr = {0};
 
 	if (uci_config == NULL) {
 		return SRPU_ERR_ARGUMENT;
 	}
 
-	error = uci_load(uci_context, uci_config, &uci_package);
-	if (error) {
+	uci_config_tmp = xstrdup(uci_config);
+
+	error = uci_lookup_ptr(uci_context, &uci_ptr, uci_config_tmp, true);
+	if (error || (uci_ptr.flags & UCI_LOOKUP_COMPLETE) == 0) {
 		error = SRPU_ERR_UCI;
 		goto out;
 	}
 
-	error = uci_commit(uci_context, &uci_package, false);
+	error = uci_commit(uci_context, &uci_ptr.p, false);
 	if (error) {
 		error = SRPU_ERR_UCI;
 		goto out;
 	}
 
 out:
-	if (uci_package) {
-		uci_unload(uci_context, uci_package);
-	}
+	FREE_SAFE(uci_config_tmp);
 
 	return error;
 }
