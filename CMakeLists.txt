@@ -11,6 +11,7 @@ include_directories(${CMAKE_SOURCE_DIR}/src/)
 set(SOURCES
     src/dhcp.c
     src/srpu.c
+    src/srpo_ubus.c
     src/utils/memory.c
 )
 

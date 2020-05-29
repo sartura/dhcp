@@ -8,6 +8,7 @@
 #include <sysrepo/xpath.h>
 
 #include "srpu.h"
+#include "srpo_ubus.h"
 #include "utils/memory.h"
 
 #define ARRAY_SIZE(X) (sizeof((X)) / sizeof((X)[0]))
@@ -19,6 +20,8 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data);
 void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data);
 
 static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_name, const char *xpath, sr_event_t event, uint32_t request_id, void *private_data);
+static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name, const char *path, const char *request_xpath, uint32_t request_id, struct lyd_node **parent, void *private_data);
+static int dhcp_v4_ubus(void *private_data);
 
 srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_uci_path_template_map[] = {
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/name", "dhcp.%s", NULL, NULL},
@@ -63,7 +66,7 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 	srpu_transform_data_cb transform_uci_data_cb = NULL;
 	char **uci_value_list = NULL;
 	size_t uci_value_list_size = 0;
-	sr_subscription_ctx_t *subscrption = NULL;
+	sr_subscription_ctx_t *subscription = NULL;
 
 	*private_data = NULL;
 
@@ -149,13 +152,17 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 
 	SRP_LOG_INFMSG("subscribing to module change");
 
-	error = sr_module_change_subscribe(session, DHCP_YANG_MODEL, "/" DHCP_YANG_MODEL ":*//*", dhcp_module_change_cb, *private_data, 0, SR_SUBSCR_DEFAULT, &subscrption);
+	error = sr_module_change_subscribe(session, DHCP_YANG_MODEL, "/" DHCP_YANG_MODEL ":*//*", dhcp_module_change_cb, *private_data, 0, SR_SUBSCR_DEFAULT, &subscription);
 	if (error) {
 		SRP_LOG_ERR("sr_module_change_subscribe error (%d): %s", error, sr_strerror(error));
 		goto error_out;
 	}
 
-	// TODO: subscribe to get items
+	error = sr_oper_get_items_subscribe(session, DHCP_YANG_MODEL, "/terastream-dhcp:dhcp-v4-leases", dhcp_state_data_cb, *private_data, SR_SUBSCR_CTX_REUSE, &subscription);
+	if (error) {
+		SRP_LOG_ERR("sr_oper_get_items_subscribe error (%d): %s", error, sr_strerror(error));
+		goto error_out;
+	}
 
 	goto out;
 
@@ -174,7 +181,7 @@ error_out:
 
 	FREE_SAFE(uci_value_list);
 
-	error = sr_unsubscribe(subscrption);
+	error = sr_unsubscribe(subscription);
 	if (error) {
 		SRP_LOG_ERR("sr_unsubscribe error (%d): %s", error, sr_strerror(error));
 	}
@@ -331,6 +338,29 @@ out:
 	sr_free_change_iter(dhcp_server_change_iter);
 
 	return error ? SR_ERR_CALLBACK_FAILED : SR_ERR_OK;
+}
+
+static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name, const char *path, const char *request_xpath, uint32_t request_id, struct lyd_node **parent, void *private_data)
+{
+	srpo_ubus_result_values_t *values = NULL;
+	srpo_ubus_transform_template_t transform_template = {.lookup_path = "network", .method = "dhcp", .transform_data_cb = dhcp_v4_ubus};
+	size_t num_values = 0;
+	int error = SRPO_UBUS_ERR_OK;
+
+	// TODO stopped here
+	error = srpo_ubus_data_get(&values, &num_values, &transform_template, private_data);
+	if (error != SRPO_UBUS_ERR_OK) {
+		SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
+		goto out;
+	}
+
+out:
+	return error ? SR_ERR_CALLBACK_FAILED : SR_ERR_OK;
+}
+
+static int dhcp_v4_ubus(void *private_data)
+{
+	return SRPO_UBUS_ERR_OK;
 }
 
 #ifndef PLUGIN
