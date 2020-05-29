@@ -15,13 +15,18 @@
 
 #define DHCP_YANG_MODEL "terastream-dhcp"
 #define SYSREPOCFG_EMPTY_CHECK_COMMAND "sysrepocfg -X -d running -m " DHCP_YANG_MODEL
+#define DHCPV4_STATE_DATA_PATH "/terastream-dhcp:dhcp-v4-leases"
+#define DHCPV6_STATE_DATA_PATH "/terastream-dhcp:dhcp-v6-leases"
 
 int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data);
 void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data);
 
 static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_name, const char *xpath, sr_event_t event, uint32_t request_id, void *private_data);
 static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name, const char *path, const char *request_xpath, uint32_t request_id, struct lyd_node **parent, void *private_data);
-static int dhcp_v4_ubus(void *private_data);
+static void dhcp_v4_ubus(const char *ubus_json, srpo_ubus_result_values_t **values);
+static void dhcp_v6_ubus(const char *ubus_json, srpo_ubus_result_values_t **values);
+static int store_ubus_values_to_datastore(sr_session_ctx_t *session, const char *request_xpath, srpo_ubus_result_values_t *values, size_t num_values, struct lyd_node **parent);
+static void free_ubus_result_values(srpo_ubus_result_values_t *values, size_t num_values);
 
 srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_uci_path_template_map[] = {
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/name", "dhcp.%s", NULL, NULL},
@@ -343,24 +348,91 @@ out:
 static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name, const char *path, const char *request_xpath, uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
 	srpo_ubus_result_values_t *values = NULL;
-	srpo_ubus_transform_template_t transform_template = {.lookup_path = "network", .method = "dhcp", .transform_data_cb = dhcp_v4_ubus};
+	srpo_ubus_transform_template_t transform_template = {.lookup_path = NULL, .method = NULL, .transform_data_cb = NULL};
 	size_t num_values = 0;
 	int error = SRPO_UBUS_ERR_OK;
 
-	// TODO stopped here
-	error = srpo_ubus_data_get(&values, &num_values, &transform_template, private_data);
-	if (error != SRPO_UBUS_ERR_OK) {
-		SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
-		goto out;
+	if (!strcmp(path, DHCPV4_STATE_DATA_PATH) || !strcmp(path, "*")) {
+		transform_template = (srpo_ubus_transform_template_t) {.lookup_path = "network", .method = "dhcp", .transform_data_cb = dhcp_v4_ubus};
+		error = srpo_ubus_data_get(&values, &num_values, &transform_template, private_data);
+		if (error != SRPO_UBUS_ERR_OK) {
+			SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
+			goto out;
+		}
+
+		error = store_ubus_values_to_datastore(session, request_xpath, values, num_values, parent);
+		// TODO fix error handling here
+		if (error) {
+			SRP_LOG_ERR("store_ubus_values_to_datastore error (%d): %s", error);
+			goto out;
+		}
+
+		free_ubus_result_values(values, num_values);
+		values = NULL;
+	}
+
+	if (!strcmp(path, DHCPV6_STATE_DATA_PATH) || !strcmp(path, "*")) {
+		transform_template = (srpo_ubus_transform_template_t) {.lookup_path = "network", .method = "dhcp", .transform_data_cb = dhcp_v6_ubus};
+		error = srpo_ubus_data_get(&values, &num_values, &transform_template, private_data);
+		if (error != SRPO_UBUS_ERR_OK) {
+			SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
+			goto out;
+		}
+
+		error = store_ubus_values_to_datastore(session, request_xpath, values, num_values, parent);
+		// TODO fix error handling here
+		if (error) {
+			SRP_LOG_ERR("store_ubus_values_to_datastore error (%d): %s", error);
+			goto out;
+		}
+
+		free_ubus_result_values(values, num_values);
+		values = NULL;
 	}
 
 out:
+	if (values) {
+		free_ubus_result_values(values, num_values);
+	}
+
 	return error ? SR_ERR_CALLBACK_FAILED : SR_ERR_OK;
 }
 
-static int dhcp_v4_ubus(void *private_data)
+static void dhcp_v4_ubus(const char *ubus_json, srpo_ubus_result_values_t **values)
 {
-	return SRPO_UBUS_ERR_OK;
+	return;
+}
+
+static void dhcp_v6_ubus(const char *ubus_json, srpo_ubus_result_values_t **values)
+{
+	return;
+}
+
+static int store_ubus_values_to_datastore(sr_session_ctx_t *session, const char *request_xpath, srpo_ubus_result_values_t *values, size_t num_values, struct lyd_node **parent)
+{
+	const struct ly_ctx *ly_ctx = NULL;
+	if (*parent == NULL) {
+		ly_ctx = sr_get_context(sr_session_get_connection(session));
+		if (ly_ctx == NULL) {
+			return -1;
+		}
+		*parent = lyd_new_path(NULL, ly_ctx, request_xpath, NULL, 0, 0);
+	}
+
+	for (size_t i = 0; i < num_values; i++) {
+		lyd_new_path(*parent, NULL, values[i].xpath, values[i].value, 0, 0);
+	}
+
+	return 0;
+}
+
+static void free_ubus_result_values(srpo_ubus_result_values_t *values, size_t num_values) {
+	for(size_t i = 0; i < num_values; i++) {
+		FREE_SAFE(values[i].xpath);
+		FREE_SAFE(values[i].value);
+	}
+
+	FREE_SAFE(values);
 }
 
 #ifndef PLUGIN

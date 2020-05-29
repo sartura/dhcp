@@ -38,7 +38,7 @@ typedef struct {
 	char *xpath;
 } srpo_ubus_result_values_t;
 
-typedef int (*srpo_ubus_transform_data_cb)(void *private_data);
+typedef void (*srpo_ubus_transform_data_cb)(const char *ubus_json, srpo_ubus_result_values_t **values);
 
 typedef struct {
 	const char *lookup_path;
