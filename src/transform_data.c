@@ -154,13 +154,13 @@ char *transform_data_seconds_to_leasetime_transform(const char *value, void *pri
 
 char *transform_data_leasetime_to_seconds_transform(const char *value, void *private_data)
 {
-	double leasetime = 0.0;
+	uint32_t leasetime = 0;
 	char seconds[20 + 1] = {0};
 
 	if (strcmp(value, "infinite") == 0) {
-		leasetime = (double) UINT32_MAX;
+		leasetime = UINT32_MAX;
 	} else {
-		sscanf(value, "%lf", &leasetime);
+		sscanf(value, "%" PRIu32, &leasetime);
 	}
 
 	if (strchr(value, 's')) {
@@ -177,11 +177,9 @@ char *transform_data_leasetime_to_seconds_transform(const char *value, void *pri
 		return NULL;
 	}
 
-	if (leasetime < 60.0) {
-		leasetime = 60.0;
-	}
+	leasetime = leasetime < 60 ? 60 : leasetime;
 
-	snprintf(seconds, sizeof(seconds), "%lf", leasetime);
+	snprintf(seconds, sizeof(seconds), "%" PRIu32, leasetime);
 
 	return xstrdup(seconds);
 }
@@ -189,12 +187,12 @@ char *transform_data_leasetime_to_seconds_transform(const char *value, void *pri
 char *transform_data_dhcpv6_interface_only_transform(const char *value, void *private_data)
 {
 	int error = 0;
-	char *dhcpv6_interface_data = NULL;
 	char *uci_section_name = (char *) private_data;
 	size_t uci_path_size = 0;
 	char *uci_path = NULL;
 	struct uci_context *uci_context = NULL;
 	struct uci_ptr uci_ptr = {0};
+	char *value_tmp = NULL;
 
 	if (uci_section_name == NULL) {
 		return NULL;
@@ -210,11 +208,15 @@ char *transform_data_dhcpv6_interface_only_transform(const char *value, void *pr
 	}
 
 	error = uci_lookup_ptr(uci_context, &uci_ptr, uci_path, true);
-	if (error || (uci_ptr.flags * UCI_LOOKUP_COMPLETE) == 0) {
+	if (error || (uci_ptr.flags & UCI_LOOKUP_COMPLETE) == 0) {
 		goto out;
 	}
 
-	dhcpv6_interface_data = xstrdup(uci_ptr.o->v.string);
+	if (strcmp(uci_ptr.o->v.string, "dhcpv6") == 0) {
+		value_tmp = xstrdup(value);
+	} else {
+		value_tmp = NULL;
+	}
 
 out:
 	FREE_SAFE(uci_path);
@@ -223,18 +225,18 @@ out:
 		uci_free_context(uci_context);
 	}
 
-	return dhcpv6_interface_data ? dhcpv6_interface_data : xstrdup("");
+	return value_tmp;
 }
 
 char *transform_data_dhcpv6_interface_only_boolean_transform(const char *value, void *private_data)
 {
 	int error = 0;
-	char *dhcpv6_interface_data = NULL;
 	char *uci_section_name = (char *) private_data;
 	size_t uci_path_size = 0;
 	char *uci_path = NULL;
 	struct uci_context *uci_context = NULL;
 	struct uci_ptr uci_ptr = {0};
+	char *value_tmp = NULL;
 
 	if (uci_section_name == NULL) {
 		return NULL;
@@ -250,10 +252,15 @@ char *transform_data_dhcpv6_interface_only_boolean_transform(const char *value, 
 	}
 
 	error = uci_lookup_ptr(uci_context, &uci_ptr, uci_path, true);
-	if (error || (uci_ptr.flags * UCI_LOOKUP_COMPLETE) == 0) {
-		dhcpv6_interface_data = "0";
+	if (error || (uci_ptr.flags & UCI_LOOKUP_COMPLETE) == 0) {
+		value_tmp = xstrdup("false");
+		goto out;
+	}
+
+	if (strcmp(uci_ptr.o->v.string, "dhcpv6") == 0) {
+		value_tmp = transform_data_zero_one_to_boolean_transform(value, NULL);
 	} else {
-		dhcpv6_interface_data = uci_ptr.o->v.string;
+		value_tmp = xstrdup("false");
 	}
 
 out:
@@ -263,5 +270,5 @@ out:
 		uci_free_context(uci_context);
 	}
 
-	return transform_data_zero_one_to_boolean_transform(dhcpv6_interface_data, NULL);
+	return value_tmp;
 }
