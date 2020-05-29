@@ -42,7 +42,7 @@ typedef enum {
 #undef XM
 } srpu_error_e;
 
-typedef char *(*srpu_transform_data_cb)(const char *uci_value);
+typedef char *(*srpu_transform_data_cb)(const char *uci_value, void *private_data);
 
 typedef struct {
 	const char *xpath_template;
@@ -50,6 +50,8 @@ typedef struct {
 	const char *uci_section_type;
 	srpu_transform_data_cb transform_sysrepo_data_cb;
 	srpu_transform_data_cb transform_uci_data_cb;
+	bool has_transform_sysrepo_data_private;
+	bool has_transform_uci_data_private;
 } srpu_uci_xpath_uci_template_map_t;
 
 int srpu_init(void);
@@ -62,19 +64,23 @@ int srpu_uci_path_list_get(const char *uci_config, const char **uci_section_list
 int srpu_xpath_to_uci_path_convert(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, size_t xpath_uci_template_map_size, char **uci_path);
 int srpu_uci_to_xpath_path_convert(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, char **xpath);
 
+char *srpu_uci_section_name_get(const char *uci_path);
+
 int srpu_transform_sysrepo_data_cb_get(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, size_t xpath_uci_template_map_size, srpu_transform_data_cb *transform_sysrepo_data_cb);
 int srpu_transform_uci_data_cb_get(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, srpu_transform_data_cb *transform_uci_data_cb);
 int srpu_uci_section_type_get(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, const char **uci_section_type);
+int srpu_has_transform_sysrepo_data_private_get(const char *xpath, srpu_uci_xpath_uci_template_map_t *xpath_uci_template_map, size_t xpath_uci_template_map_size, bool *has_transform_sysrepo_data_private);
+int srpu_has_transform_uci_data_private_get(const char *uci_path, srpu_uci_xpath_uci_template_map_t *uci_xpath_template_map, size_t uci_xpath_template_map_size, bool *has_transform_uci_data_private);
 
 int srpu_uci_section_create(const char *uci_path, const char *uci_section_type);
 int srpu_uci_section_delete(const char *uci_path);
-int srpu_uci_option_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb);
+int srpu_uci_option_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb, void *private_data);
 int srpu_uci_option_remove(const char *uci_path);
-int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb);
+int srpu_uci_list_set(const char *uci_path, const char *value, srpu_transform_data_cb transform_sysrepo_data_cb, void *private_data);
 int srpu_uci_list_remove(const char *uci_path, const char *value);
-int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, char ***value_list, size_t *value_list_size);
+int srpu_uci_element_value_get(const char *uci_path, srpu_transform_data_cb transform_uci_data_cb, void *private_data, char ***value_list, size_t *value_list_size);
 
-bool srpu_uci_section_exists(const char *uci_package_name, const char *uci_section_name);
-int srpu_uci_to_file_sync(const char *uci_config_file);
+void srpu_uci_revert(const char *uci_config);
+int srpu_uci_commit(const char *uci_config);
 
 #endif /* SRPU_H_ONCE */
