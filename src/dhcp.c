@@ -98,6 +98,12 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 			SRP_LOG_ERRMSG("dhcp_uci_data_load error");
 			goto error_out;
 		}
+
+		error = sr_copy_config(startup_session, DHCP_YANG_MODEL, SR_DS_RUNNING, 0, 0);
+		if (error) {
+			SRP_LOG_ERR("sr_copy_config error (%d): %s", error, sr_strerror(error));
+			goto error_out;
+		}
 	}
 
 	SRP_LOG_INFMSG("subscribing to module change");
@@ -109,6 +115,8 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 	}
 
 	// TODO: subscribe to get items
+
+	SRP_LOG_INFMSG("plugin init done");
 
 	goto out;
 
@@ -201,10 +209,10 @@ static int dhcp_uci_data_load(sr_session_ctx_t *session)
 					goto error_out;
 				}
 
-				FREE_SAFE(uci_section_name);
 				FREE_SAFE(uci_value_list[k]);
 			}
 
+			FREE_SAFE(uci_section_name);
 			FREE_SAFE(uci_path_list[j]);
 			FREE_SAFE(xpath);
 			FREE_SAFE(uci_value_list);
