@@ -2,16 +2,18 @@
 #include <libubox/blobmsg.h>
 #include <libubox/blobmsg_json.h>
 
+#include "utils/memory.h"
+
 #include "srpo_ubus.h"
 
 typedef struct {
 	srpo_ubus_transform_data_cb transform_data_cb;
-	srpo_ubus_result_values_t **values;
+	srpo_ubus_result_values_t *values;
 } srpo_ubus_invoke_wrapper_t;
 
 static void ubus_data_cb(struct ubus_request *req, int type, struct blob_attr *msg);
 
-srpo_ubus_error_e srpo_ubus_data_get(srpo_ubus_result_values_t **values, size_t *num_values, srpo_ubus_transform_template_t *transform, void *private_data)
+srpo_ubus_error_e srpo_ubus_data_get(srpo_ubus_result_values_t *values, srpo_ubus_transform_template_t *transform)
 {
 	srpo_ubus_error_e error = SRPO_UBUS_ERR_OK;
 	struct ubus_context *ubus_ctx = NULL;
@@ -65,4 +67,40 @@ static void ubus_data_cb(struct ubus_request *req, int type, struct blob_attr *m
 	private_data->transform_data_cb(json_result, private_data->values);
 
 	return;
+}
+
+srpo_ubus_error_e srpo_ubus_result_values_add(srpo_ubus_result_values_t *values, const char *value, const char *xpath_template, const char *xpath_value)
+{
+	srpo_ubus_error_e error = SRPO_UBUS_ERR_OK;
+	size_t xpath_len = 0;
+
+	values->values = xrealloc(values->values, sizeof(srpo_ubus_result_value_t) * (values->num_values + 1));
+	//TODO check for buffer overflow
+	values->values[values->num_values].value = xstrdup(value);
+	//TODO check for buffer overflow
+	xpath_len = strlen(xpath_template) + strlen(xpath_value);
+	values->values[values->num_values].xpath = xmalloc(xpath_len + 1);
+	snprintf(values->values[values->num_values].xpath, xpath_len, xpath_template, xpath_value);
+
+	values->num_values++;
+
+	return error;
+}
+
+void srpo_ubus_init_result_values(srpo_ubus_result_values_t **values)
+{
+	*values = xmalloc(sizeof(srpo_ubus_result_values_t));
+	(*values)->num_values = 0;
+	(*values)->values = NULL;
+}
+
+void srpo_ubus_free_result_values(srpo_ubus_result_values_t *values)
+{
+        for(size_t i = 0; i < values->num_values; i++) {
+                FREE_SAFE(values->values[i].xpath);
+                FREE_SAFE(values->values[i].value);
+        }
+
+        FREE_SAFE(values->values);
+        FREE_SAFE(values);
 }

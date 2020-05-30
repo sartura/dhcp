@@ -36,9 +36,14 @@ typedef enum {
 typedef struct {
 	char *value;
 	char *xpath;
+} srpo_ubus_result_value_t;
+
+typedef struct {
+	srpo_ubus_result_value_t *values;
+	size_t num_values;
 } srpo_ubus_result_values_t;
 
-typedef void (*srpo_ubus_transform_data_cb)(const char *ubus_json, srpo_ubus_result_values_t **values);
+typedef void (*srpo_ubus_transform_data_cb)(const char *ubus_json, srpo_ubus_result_values_t *values);
 
 typedef struct {
 	const char *lookup_path;
@@ -46,7 +51,11 @@ typedef struct {
 	srpo_ubus_transform_data_cb transform_data_cb;
 } srpo_ubus_transform_template_t;
 
-srpo_ubus_error_e srpo_ubus_data_get(srpo_ubus_result_values_t **values, size_t *num_values, srpo_ubus_transform_template_t *transform, void *private_data);
+srpo_ubus_error_e srpo_ubus_data_get(srpo_ubus_result_values_t *values, srpo_ubus_transform_template_t *transform);
+
+void srpo_ubus_init_result_values(srpo_ubus_result_values_t **values);
+srpo_ubus_error_e srpo_ubus_result_values_add(srpo_ubus_result_values_t *values, const char *value, const char *xpath_template, const char *xpath_value);
+void srpo_ubus_free_result_values(srpo_ubus_result_values_t *values);
 
 const char *srpo_ubus_error_description_get(srpo_ubus_error_e error);
 #endif /*SRPO_UBUS_H_ONCE*/
