@@ -10,8 +10,6 @@ include_directories(${CMAKE_SOURCE_DIR}/src/)
 
 set(SOURCES
     src/dhcp.c
-    src/srpu.c
-    src/srpo_ubus.c
     src/transform_data.c
     src/utils/memory.c
 )
@@ -61,6 +59,7 @@ find_package(UCI REQUIRED)
 find_package(LIBUBOX REQUIRED)
 find_package(LIBUBUS REQUIRED)
 find_package(JSON-C REQUIRED)
+find_package(SRPO REQUIRED)
 
 
 target_link_libraries(
@@ -71,6 +70,7 @@ target_link_libraries(
     ${LIBUBOX_LIBRARIES}
     ${LIBUBUS_LIBRARIES}
     ${JSON-C_LIBRARIES}
+    ${SRPO_LIBRARIES}
 )
 
 include_directories(
@@ -79,6 +79,6 @@ include_directories(
     ${UCI_INCLUDE_DIR}
     ${LIBUBOX_INCLUDE_DIR}
     ${LIBUBUS_INCLUDE_DIR}
-    ${SR_UCI_INCLUDE_DIR}
     ${JSON-C_INCLUDE_DIR}
+    ${SRPO_INCLUDE_DIRS}
 )

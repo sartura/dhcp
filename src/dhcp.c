@@ -9,9 +9,10 @@
 #include <sysrepo.h>
 #include <sysrepo/xpath.h>
 
-#include "srpu.h"
+#include <srpo_uci.h>
+#include <srpo_ubus.h>
+
 #include "transform_data.h"
-#include "srpo_ubus.h"
 #include "utils/memory.h"
 
 #define ARRAY_SIZE(X) (sizeof((X)) / sizeof((X)[0]))
@@ -44,7 +45,7 @@ static int store_ubus_values_to_datastore(sr_session_ctx_t *session, const char 
 static int dhcp_v6_ubus_handle_iop3(json_object *child_value, srpo_ubus_result_values_t *values, const  char *xpath_template, const char *xpath_value);
 static int dhcp_v6_ubus_handle_iop4(json_object *child_value, srpo_ubus_result_values_t *values, const  char *xpath_template, const char *xpath_value);
 
-srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_path_template_map[] = {
+srpo_uci_xpath_uci_template_map_t dhcp_xpath_uci_path_template_map[] = {
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']", "dhcp.%s", "dhcp", NULL, NULL, false, false},
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/enable", "dhcp.%s.ignore", NULL, transform_data_boolean_to_zero_one_negated_transform, transform_data_zero_one_to_boolean_negated_transform, true, true},
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface", "dhcp.%s.interface", NULL, NULL, NULL, false, false},
@@ -62,7 +63,7 @@ srpu_uci_xpath_uci_template_map_t dhcp_xpath_uci_path_template_map[] = {
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/master", "dhcp.%s.master", NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, true, true},
 	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/networkid", "dhcp.%s.networkid", NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, false, false},
 	{"/terastream-dhcp:domains/domain", "dhcp.@domain[0].name", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']", "network.%s", "network", NULL, NULL, false, false},
+	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']", "network.%s", "interface", NULL, NULL, false, false},
 	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/proto", "network.%s.proto", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
 	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra", "network.%s.accept_ra", NULL, transform_data_boolean_to_zero_one_negated_transform, transform_data_dhcpv6_interface_only_boolean_transform, false, true},
 	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_pd", "network.%s.request_pd", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
@@ -102,9 +103,9 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 
 	*private_data = NULL;
 
-	error = srpu_init();
+	error = srpo_uci_init();
 	if (error) {
-		SRP_LOG_ERR("srpu_init error (%d): %s", error, srpu_error_description_get(error));
+		SRP_LOG_ERR("srpo_uci_init error (%d): %s", error, srpo_uci_error_description_get(error));
 		goto error_out;
 	}
 
@@ -193,47 +194,47 @@ static int dhcp_uci_data_load(sr_session_ctx_t *session)
 	char **uci_path_list = NULL;
 	size_t uci_path_list_size = 0;
 	char *xpath = NULL;
-	srpu_transform_data_cb transform_uci_data_cb = NULL;
+	srpo_uci_transform_data_cb transform_uci_data_cb = NULL;
 	bool has_transform_uci_data_private = false;
 	char *uci_section_name = NULL;
 	char **uci_value_list = NULL;
 	size_t uci_value_list_size = 0;
 
 	for (size_t i = 0; i < ARRAY_SIZE(dhcp_config_files); i++) {
-		error = srpu_uci_path_list_get(dhcp_config_files[i].uci_file, dhcp_config_files[i].uci_section_list, dhcp_config_files[i].uci_section_list_size, &uci_path_list, &uci_path_list_size);
+		error = srpo_uci_ucipath_list_get(dhcp_config_files[i].uci_file, dhcp_config_files[i].uci_section_list, dhcp_config_files[i].uci_section_list_size, &uci_path_list, &uci_path_list_size);
 		if (error) {
-			SRP_LOG_ERR("srpu_uci_path_list_get error (%d): %s", error, srpu_error_description_get(error));
+			SRP_LOG_ERR("srpo_uci_path_list_get error (%d): %s", error, srpo_uci_error_description_get(error));
 			goto error_out;
 		}
 
 		for (size_t j = 0; j < uci_path_list_size; j++) {
-			error = srpu_uci_to_xpath_path_convert(uci_path_list[j], dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &xpath);
-			if (error && error != SRPU_ERR_NOT_FOUND) {
-				SRP_LOG_ERR("srpu_uci_to_xpath_path_convert error (%d): %s", error, srpu_error_description_get(error));
+			error = srpo_uci_ucipath_to_xpath_convert(uci_path_list[j], dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &xpath);
+			if (error && error != SRPO_UCI_ERR_NOT_FOUND) {
+				SRP_LOG_ERR("srpo_uci_to_xpath_path_convert error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
-			} else if (error == SRPU_ERR_NOT_FOUND) {
+			} else if (error == SRPO_UCI_ERR_NOT_FOUND) {
 				error = 0;
 				FREE_SAFE(uci_path_list[j]);
 				continue;
 			}
 
-			error = srpu_transform_uci_data_cb_get(uci_path_list[j], dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &transform_uci_data_cb);
+			error = srpo_uci_transform_uci_data_cb_get(uci_path_list[j], dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &transform_uci_data_cb);
 			if (error) {
-				SRP_LOG_ERR("srpu_transfor_uci_data_cb_get error (%d): %s", error, srpu_error_description_get(error));
+				SRP_LOG_ERR("srpo_uci_transfor_uci_data_cb_get error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
 			}
 
-			error = srpu_has_transform_uci_data_private_get(uci_path_list[j], dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &has_transform_uci_data_private);
+			error = srpo_uci_has_transform_uci_data_private_get(uci_path_list[j], dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &has_transform_uci_data_private);
 			if (error) {
-				SRP_LOG_ERR("srpu_has_transform_uci_data_private_get error (%d): %s", error, srpu_error_description_get(error));
+				SRP_LOG_ERR("srpo_uci_has_transform_uci_data_private_get error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
 			}
 
-			uci_section_name = srpu_uci_section_name_get(uci_path_list[j]);
+			uci_section_name = srpo_uci_section_name_get(uci_path_list[j]);
 
-			error = srpu_uci_element_value_get(uci_path_list[j], transform_uci_data_cb, has_transform_uci_data_private ? uci_section_name : NULL, &uci_value_list, &uci_value_list_size);
+			error = srpo_uci_element_value_get(uci_path_list[j], transform_uci_data_cb, has_transform_uci_data_private ? uci_section_name : NULL, &uci_value_list, &uci_value_list_size);
 			if (error) {
-				SRP_LOG_ERR("srpu_uci_element_value_get error (%d): %s", error, srpu_error_description_get(error));
+				SRP_LOG_ERR("srpo_uci_element_value_get error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
 			}
 
@@ -287,7 +288,7 @@ out:
 
 void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data)
 {
-	srpu_cleanup();
+	srpo_uci_cleanup();
 
 	sr_session_ctx_t *startup_session = (sr_session_ctx_t *) private_data;
 
@@ -313,7 +314,7 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 	char *uci_path = NULL;
 	struct lyd_node_leaf_list *node_leaf_list;
 	struct lys_node_leaf *schema_node_leaf;
-	srpu_transform_data_cb transform_sysrepo_data_cb = NULL;
+	srpo_uci_transform_data_cb transform_sysrepo_data_cb = NULL;
 	bool has_transform_sysrepo_data_private = false;
 	const char *uci_section_type = NULL;
 	char *uci_section_name = NULL;
@@ -345,36 +346,36 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 		while (sr_get_change_tree_next(session, dhcp_server_change_iter, &operation, &node, &prev_value, &prev_list, &prev_default) == SR_ERR_OK) {
 			node_xpath = dhcp_xpath_get(node);
 
-			error = srpu_xpath_to_uci_path_convert(node_xpath, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &uci_path);
-			if (error && error != SRPU_ERR_NOT_FOUND) {
-				SRP_LOG_ERR("srpu_xpath_to_uci_path_convert error (%d): %s", error, srpu_error_description_get(error));
+			error = srpo_uci_xpath_to_ucipath_convert(node_xpath, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &uci_path);
+			if (error && error != SRPO_UCI_ERR_NOT_FOUND) {
+				SRP_LOG_ERR("srpo_uci_xpath_to_ucipath_convert error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
-			} else if (error == SRPU_ERR_NOT_FOUND) {
+			} else if (error == SRPO_UCI_ERR_NOT_FOUND) {
 				error = 0;
 				SRP_LOG_DBG("xpath %s not found in table", node_xpath);
 				FREE_SAFE(node_xpath);
 				continue;
 			}
 
-			error = srpu_transform_sysrepo_data_cb_get(node_xpath, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &transform_sysrepo_data_cb);
+			error = srpo_uci_transform_sysrepo_data_cb_get(node_xpath, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &transform_sysrepo_data_cb);
 			if (error) {
-				SRP_LOG_ERR("srpu_transfor_sysrepo_data_cb_get error (%d): %s", error, srpu_error_description_get(error));
+				SRP_LOG_ERR("srpo_uci_transfor_sysrepo_data_cb_get error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
 			}
 
-			error = srpu_has_transform_sysrepo_data_private_get(node_xpath, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &has_transform_sysrepo_data_private);
+			error = srpo_uci_has_transform_sysrepo_data_private_get(node_xpath, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &has_transform_sysrepo_data_private);
 			if (error) {
-				SRP_LOG_ERR("srpu_has_transform_sysrepo_data_private_get error (%d): %s", error, srpu_error_description_get(error));
+				SRP_LOG_ERR("srpo_uci_has_transform_sysrepo_data_private_get error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
 			}
 
-			error = srpu_uci_section_type_get(uci_path, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &uci_section_type);
+			error = srpo_uci_section_type_get(uci_path, dhcp_xpath_uci_path_template_map, ARRAY_SIZE(dhcp_xpath_uci_path_template_map), &uci_section_type);
 			if (error) {
-				SRP_LOG_ERR("srpu_uci_section_type_get error (%d): %s", error, srpu_error_description_get(error));
+				SRP_LOG_ERR("srpo_uci_section_type_get error (%d): %s", error, srpo_uci_error_description_get(error));
 				goto error_out;
 			}
 
-			uci_section_name = srpu_uci_section_name_get(uci_path);
+			uci_section_name = srpo_uci_section_name_get(uci_path);
 
 			if (node->schema->nodetype == LYS_LEAF || node->schema->nodetype == LYS_LEAFLIST) {
 				node_leaf_list = (struct lyd_node_leaf_list *) node;
@@ -389,15 +390,15 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 
 			if (node->schema->nodetype == LYS_LIST) {
 				if (operation == SR_OP_CREATED) {
-					error = srpu_uci_section_create(uci_path, uci_section_type);
+					error = srpo_uci_section_create(uci_path, uci_section_type);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_section_create error (%d): %s", error, srpu_error_description_get(error));
+						SRP_LOG_ERR("srpo_uci_section_create error (%d): %s", error, srpo_uci_error_description_get(error));
 						goto error_out;
 					}
 				} else if (operation == SR_OP_DELETED) {
-					error = srpu_uci_section_delete(uci_path);
+					error = srpo_uci_section_delete(uci_path);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_section_delete error (%d): %s", error, srpu_error_description_get(error));
+						SRP_LOG_ERR("srpo_uci_section_delete error (%d): %s", error, srpo_uci_error_description_get(error));
 						goto error_out;
 					}
 				}
@@ -411,15 +412,15 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 						transform_cb_data = NULL;
 					}
 
-					error = srpu_uci_option_set(uci_path, node_value, transform_sysrepo_data_cb, transform_cb_data);
+					error = srpo_uci_option_set(uci_path, node_value, transform_sysrepo_data_cb, transform_cb_data);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_option_set error (%d): %s", error, srpu_error_description_get(error));
+						SRP_LOG_ERR("srpo_uci_option_set error (%d): %s", error, srpo_uci_error_description_get(error));
 						goto error_out;
 					}
 				} else if (operation == SR_OP_DELETED) {
-					error = srpu_uci_option_remove(uci_path);
+					error = srpo_uci_option_remove(uci_path);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_option_remove error (%d): %s", error, srpu_error_description_get(error));
+						SRP_LOG_ERR("srpo_uci_option_remove error (%d): %s", error, srpo_uci_error_description_get(error));
 						goto error_out;
 					}
 				}
@@ -431,15 +432,15 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 				}
 
 				if (operation == SR_OP_CREATED) {
-					error = srpu_uci_list_set(uci_path, node_value, transform_sysrepo_data_cb, transform_cb_data);
+					error = srpo_uci_list_set(uci_path, node_value, transform_sysrepo_data_cb, transform_cb_data);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_list_set error (%d): %s", error, srpu_error_description_get(error));
+						SRP_LOG_ERR("srpo_uci_list_set error (%d): %s", error, srpo_uci_error_description_get(error));
 						goto error_out;
 					}
 				} else if (operation == SR_OP_DELETED) {
-					error = srpu_uci_list_remove(uci_path, node_value);
+					error = srpo_uci_list_remove(uci_path, node_value);
 					if (error) {
-						SRP_LOG_ERR("srpu_uci_list_remove error (%d): %s", error, srpu_error_description_get(error));
+						SRP_LOG_ERR("srpo_uci_list_remove error (%d): %s", error, srpo_uci_error_description_get(error));
 						goto error_out;
 					}
 				}
@@ -450,15 +451,15 @@ static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_n
 			node_value = NULL;
 		}
 
-		srpu_uci_commit("dhcp");
-		srpu_uci_commit("network");
+		srpo_uci_commit("dhcp");
+		srpo_uci_commit("network");
 	}
 
 	goto out;
 
 error_out:
-	srpu_uci_revert("dhcp");
-	srpu_uci_revert("network");
+	srpo_uci_revert("dhcp");
+	srpo_uci_revert("network");
 
 out:
 	FREE_SAFE(uci_section_name);
