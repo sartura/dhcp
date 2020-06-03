@@ -572,7 +572,7 @@ static void dhcp_v4_ubus(const char *ubus_json, srpo_ubus_result_values_t *value
 
 			value_string = json_object_get_string(child_value);
 
-			error = srpo_ubus_result_values_add(values, value_string, dhcp_v4_transform_table[i].xpath_template, key);
+			error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), dhcp_v4_transform_table[i].xpath_template, strlen(dhcp_v4_transform_table[i].xpath_template), key, strlen(key));
 			if (error != SRPO_UBUS_ERR_OK) {
 				goto cleanup;
 			}
@@ -618,21 +618,21 @@ static void dhcp_v6_ubus(const char *ubus_json, srpo_ubus_result_values_t *value
 
 				json_object_object_get_ex(array_value, "hostname", &child_value);
 				value_string = json_object_get_string(child_value);
-				error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "hostname", xpath_value);
+				error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "hostname", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "hostname"), xpath_value, strlen(xpath_value));
 				if (error != SRPO_UBUS_ERR_OK) {
 					goto cleanup;
 				}
 
 				json_object_object_get_ex(array_value, "iaid", &child_value);
 				value_string = json_object_get_string(child_value);
-				error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "iaid", xpath_value);
+				error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "iaid", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "iaid"), xpath_value, strlen(xpath_value));
 				if (error != SRPO_UBUS_ERR_OK) {
 					goto cleanup;
 				}
 
 				json_object_object_get_ex(array_value, "duid", &child_value);
 				value_string = json_object_get_string(child_value);
-				error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "duid", xpath_value);
+				error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "duid", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "duid"), xpath_value, strlen(xpath_value));
 				if (error != SRPO_UBUS_ERR_OK) {
 					goto cleanup;
 				}
@@ -642,7 +642,7 @@ static void dhcp_v6_ubus(const char *ubus_json, srpo_ubus_result_values_t *value
 				if (value_string[0] == '-') {
 					value_string++;
 				}
-				error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "valid", xpath_value);
+				error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "valid", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE), xpath_value, strlen(xpath_value));
 				if (error != SRPO_UBUS_ERR_OK) {
 					goto cleanup;
 				}
@@ -656,7 +656,7 @@ static void dhcp_v6_ubus(const char *ubus_json, srpo_ubus_result_values_t *value
 
 					json_object_object_get_ex(array_value, "length", &child_value);
 					value_string = json_object_get_string(child_value);
-					error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "length", xpath_value);
+					error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "length", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "length"), xpath_value, strlen(xpath_value));
 					if (error != SRPO_UBUS_ERR_OK) {
 						goto cleanup;
 					}
@@ -695,7 +695,7 @@ static int dhcp_v6_ubus_handle_iop3(json_object *ip_array, srpo_ubus_result_valu
 	for (size_t i = 0; i < array_len; i++) {
 		ip = json_object_array_get_idx(ip_array, i);
 		value_string = json_object_get_string(ip);
-		error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "ipv6", xpath_value);
+		error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "ipv6", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "ipv6"), xpath_value, strlen(xpath_value));
 		if (error != SRPO_UBUS_ERR_OK) {
 			return -1;
 		}
@@ -716,14 +716,14 @@ static int dhcp_v6_ubus_handle_iop4(json_object *ip_array, srpo_ubus_result_valu
 		ip = json_object_array_get_idx(ip_array, i);
 		json_object_object_get_ex(ip, "address", &child_value);
 		value_string = json_object_get_string(child_value);
-		error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "ipv6", xpath_value);
+		error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "ipv6", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "ipv6"), xpath_value, strlen(xpath_value));
 		if (error != SRPO_UBUS_ERR_OK) {
 			return -1;
 		}
 
 		json_object_object_get_ex(ip, "prefix-length", &child_value);
 		value_string = child_value == NULL ? "128" : json_object_get_string(child_value);
-		error = srpo_ubus_result_values_add(values, value_string, DHCP_V6_STATE_DATA_XPATH_TEMPLATE "length", xpath_value);
+		error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "length", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "length"), xpath_value, strlen(xpath_value));
 		if (error != SRPO_UBUS_ERR_OK) {
 			return -1;
 		}
