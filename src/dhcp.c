@@ -22,7 +22,7 @@
 #define DHCP_V4_STATE_DATA_PATH "/terastream-dhcp:dhcp-v4-leases"
 #define DHCP_V4_STATE_DATA_XPATH_TEMPLATE DHCP_V4_STATE_DATA_PATH "/dhcp-v4-lease[name='%s']/"
 #define DHCP_V6_STATE_DATA_PATH "/terastream-dhcp:dhcp-v6-leases"
-#define DHCP_V6_STATE_DATA_XPATH_TEMPLATE DHCP_V6_STATE_DATA_PATH "/dhcp-v6-lease[assigned='%s'/"
+#define DHCP_V6_STATE_DATA_XPATH_TEMPLATE DHCP_V6_STATE_DATA_PATH "/dhcp-v6-lease[assigned='%s']/"
 
 typedef struct {
 	const char *value_name;
@@ -79,7 +79,7 @@ static dhcp_ubus_json_transform_table_t dhcp_v4_transform_table[] = {
 	{.value_name = "ipaddr", .xpath_template = DHCP_V4_STATE_DATA_XPATH_TEMPLATE "ipaddr"},
 	{.value_name = "macaddr", .xpath_template = DHCP_V4_STATE_DATA_XPATH_TEMPLATE "macaddr"},
 	{.value_name = "device", .xpath_template = DHCP_V4_STATE_DATA_XPATH_TEMPLATE "device"},
-	{.value_name = "connected", .xpath_template = DHCP_V4_STATE_DATA_XPATH_TEMPLATE "/connected"},
+	{.value_name = "connected", .xpath_template = DHCP_V4_STATE_DATA_XPATH_TEMPLATE "connected"},
 };
 
 static const char *dhcp_uci_sections[] = {"dhcp", "domain"};
@@ -147,6 +147,12 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 	SRP_LOG_INFMSG("subscribing to get oper items");
 
 	error = sr_oper_get_items_subscribe(session, DHCP_YANG_MODEL, "/terastream-dhcp:dhcp-v4-leases", dhcp_state_data_cb, NULL, SR_SUBSCR_CTX_REUSE, &subscription);
+	if (error) {
+		SRP_LOG_ERR("sr_oper_get_items_subscribe error (%d): %s", error, sr_strerror(error));
+		goto error_out;
+	}
+
+	error = sr_oper_get_items_subscribe(session, DHCP_YANG_MODEL, "/terastream-dhcp:dhcp-v6-leases", dhcp_state_data_cb, NULL, SR_SUBSCR_CTX_REUSE, &subscription);
 	if (error) {
 		SRP_LOG_ERR("sr_oper_get_items_subscribe error (%d): %s", error, sr_strerror(error));
 		goto error_out;
@@ -506,7 +512,7 @@ static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name
 	if (!strcmp(path, DHCP_V4_STATE_DATA_PATH) || !strcmp(path, "*")) {
 		srpo_ubus_init_result_values(&values);
 
-		transform_template = (srpo_ubus_transform_template_t){.lookup_path = "network", .method = "dhcp", .transform_data_cb = dhcp_v4_ubus};
+		transform_template = (srpo_ubus_transform_template_t){.lookup_path = "router.network", .method = "leases", .transform_data_cb = dhcp_v4_ubus};
 		error = srpo_ubus_data_get(values, &transform_template);
 		if (error != SRPO_UBUS_ERR_OK) {
 			SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
@@ -527,7 +533,7 @@ static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name
 	if (!strcmp(path, DHCP_V6_STATE_DATA_PATH) || !strcmp(path, "*")) {
 		srpo_ubus_init_result_values(&values);
 
-		transform_template = (srpo_ubus_transform_template_t){.lookup_path = "network", .method = "dhcp", .transform_data_cb = dhcp_v6_ubus};
+		transform_template = (srpo_ubus_transform_template_t){.lookup_path = "dhcp", .method = "ipv6leases", .transform_data_cb = dhcp_v6_ubus};
 		error = srpo_ubus_data_get(values, &transform_template);
 		if (error != SRPO_UBUS_ERR_OK) {
 			SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
@@ -642,7 +648,7 @@ static void dhcp_v6_ubus(const char *ubus_json, srpo_ubus_result_values_t *value
 				if (value_string[0] == '-') {
 					value_string++;
 				}
-				error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "valid", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE), xpath_value, strlen(xpath_value));
+				error = srpo_ubus_result_values_add(values, value_string, strlen(value_string), DHCP_V6_STATE_DATA_XPATH_TEMPLATE "valid", strlen(DHCP_V6_STATE_DATA_XPATH_TEMPLATE "valid"), xpath_value, strlen(xpath_value));
 				if (error != SRPO_UBUS_ERR_OK) {
 					goto cleanup;
 				}
@@ -692,6 +698,8 @@ static int dhcp_v6_ubus_handle_iop3(json_object *ip_array, srpo_ubus_result_valu
 	const char *value_string = NULL;
 	int error = 0;
 
+	array_len = json_object_array_length(ip_array);
+
 	for (size_t i = 0; i < array_len; i++) {
 		ip = json_object_array_get_idx(ip_array, i);
 		value_string = json_object_get_string(ip);
@@ -711,6 +719,8 @@ static int dhcp_v6_ubus_handle_iop4(json_object *ip_array, srpo_ubus_result_valu
 	json_object *child_value= NULL;
 	const char *value_string = NULL;
 	int error = 0;
+
+	array_len = json_object_array_length(ip_array);
 
 	for (size_t i = 0; i < array_len; i++) {
 		ip = json_object_array_get_idx(ip_array, i);
