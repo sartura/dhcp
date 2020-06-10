@@ -506,16 +506,16 @@ static char *dhcp_xpath_get(const struct lyd_node *node)
 static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name, const char *path, const char *request_xpath, uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
 	srpo_ubus_result_values_t *values = NULL;
-	srpo_ubus_transform_template_t transform_template = {.lookup_path = NULL, .method = NULL, .transform_data_cb = NULL};
+	srpo_ubus_call_data_t ubus_call_data = {.lookup_path = NULL, .method = NULL, .transform_data_cb = NULL};
 	int error = SRPO_UBUS_ERR_OK;
 
 	if (!strcmp(path, DHCP_V4_STATE_DATA_PATH) || !strcmp(path, "*")) {
 		srpo_ubus_init_result_values(&values);
 
-		transform_template = (srpo_ubus_transform_template_t){.lookup_path = "router.network", .method = "leases", .transform_data_cb = dhcp_v4_ubus};
-		error = srpo_ubus_data_get(values, &transform_template);
+		ubus_call_data = (srpo_ubus_call_data_t){.lookup_path = "router.network", .method = "leases", .transform_data_cb = dhcp_v4_ubus, .timeout = 0, .json_call_arguments = NULL};
+		error = srpo_ubus_call(values, &ubus_call_data);
 		if (error != SRPO_UBUS_ERR_OK) {
-			SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
+			SRP_LOG_ERR("srpo_ubus_call error (%d): %s", error, srpo_ubus_error_description_get(error));
 			goto out;
 		}
 
@@ -533,10 +533,10 @@ static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name
 	if (!strcmp(path, DHCP_V6_STATE_DATA_PATH) || !strcmp(path, "*")) {
 		srpo_ubus_init_result_values(&values);
 
-		transform_template = (srpo_ubus_transform_template_t){.lookup_path = "dhcp", .method = "ipv6leases", .transform_data_cb = dhcp_v6_ubus};
-		error = srpo_ubus_data_get(values, &transform_template);
+		ubus_call_data = (srpo_ubus_call_data_t){.lookup_path = "dhcp", .method = "ipv6leases", .transform_data_cb = dhcp_v6_ubus, .timeout = 0, .json_call_arguments = NULL};
+		error = srpo_ubus_call(values, &ubus_call_data);
 		if (error != SRPO_UBUS_ERR_OK) {
-			SRP_LOG_ERR("srpo_ubus_data_get error (%d): %s", error, srpo_ubus_error_description_get(error));
+			SRP_LOG_ERR("srpo_ubus_call error (%d): %s", error, srpo_ubus_error_description_get(error));
 			goto out;
 		}
 
