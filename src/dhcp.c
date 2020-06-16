@@ -207,7 +207,7 @@ static int dhcp_uci_data_load(sr_session_ctx_t *session)
 	size_t uci_value_list_size = 0;
 
 	for (size_t i = 0; i < ARRAY_SIZE(dhcp_config_files); i++) {
-		error = srpo_uci_ucipath_list_get(dhcp_config_files[i].uci_file, dhcp_config_files[i].uci_section_list, dhcp_config_files[i].uci_section_list_size, &uci_path_list, &uci_path_list_size);
+		error = srpo_uci_ucipath_list_get(dhcp_config_files[i].uci_file, dhcp_config_files[i].uci_section_list, dhcp_config_files[i].uci_section_list_size, &uci_path_list, &uci_path_list_size, true);
 		if (error) {
 			SRP_LOG_ERR("srpo_uci_path_list_get error (%d): %s", error, srpo_uci_error_description_get(error));
 			goto error_out;
