@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(dhcp C)
+project(sysrepo-plugin-dt-dhcp C)
 
 include(CompileOptions.cmake)
 
