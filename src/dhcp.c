@@ -19,9 +19,13 @@
 
 #define DHCP_YANG_MODEL "terastream-dhcp"
 #define SYSREPOCFG_EMPTY_CHECK_COMMAND "sysrepocfg -X -d running -m " DHCP_YANG_MODEL
-#define DHCP_V4_STATE_DATA_PATH "/terastream-dhcp:dhcp-v4-leases"
+
+#define DHCP_SERVER_XPATH_TEMPLATE "/" DHCP_YANG_MODEL ":dhcp-servers/dhcp-server[name='%s']"
+#define DHCP_CLIENT_XPATH_TEMPLATE "/" DHCP_YANG_MODEL ":dhcp-clients/dhcp-client[name='%s']"
+
+#define DHCP_V4_STATE_DATA_PATH "/" DHCP_YANG_MODEL ":dhcp-v4-leases"
 #define DHCP_V4_STATE_DATA_XPATH_TEMPLATE DHCP_V4_STATE_DATA_PATH "/dhcp-v4-lease[name='%s']/"
-#define DHCP_V6_STATE_DATA_PATH "/terastream-dhcp:dhcp-v6-leases"
+#define DHCP_V6_STATE_DATA_PATH "/" DHCP_YANG_MODEL ":dhcp-v6-leases"
 #define DHCP_V6_STATE_DATA_XPATH_TEMPLATE DHCP_V6_STATE_DATA_PATH "/dhcp-v6-lease[assigned='%s']/"
 
 typedef struct {
@@ -46,31 +50,47 @@ static int dhcp_v6_ubus_handle_iop3(json_object *child_value, srpo_ubus_result_v
 static int dhcp_v6_ubus_handle_iop4(json_object *child_value, srpo_ubus_result_values_t *values, const  char *xpath_template, const char *xpath_value);
 
 srpo_uci_xpath_uci_template_map_t dhcp_xpath_uci_path_template_map[] = {
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']", "dhcp.%s", "dhcp", NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/enable", "dhcp.%s.ignore", NULL, transform_data_boolean_to_zero_one_negated_transform, transform_data_zero_one_to_boolean_negated_transform, true, true},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/interface", "dhcp.%s.interface", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/start", "dhcp.%s.start", NULL, NULL, NULL, true, true},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/stop", "dhcp.%s.limit", NULL, transform_data_stop_to_limit_transform, transform_data_limit_to_stop_transform, true, true},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/leasetime", "dhcp.%s.leasetime", NULL, transform_data_seconds_to_leasetime_transform, transform_data_leasetime_to_seconds_transform, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcpv6", "dhcp.%s.dhcpv6", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra", "dhcp.%s.ra", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ra_management", "dhcp.%s.ra_management", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/sntp", "dhcp.%s.sntp", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dhcp_option", "dhcp.%s.dhcp_option", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/dynamicdhcp", "dhcp.%s.dynamicdhcp", NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, true, true},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/force", "dhcp.%s.force", NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, true, true},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/ndp", "dhcp.%s.ndp", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/master", "dhcp.%s.master", NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, true, true},
-	{"/terastream-dhcp:dhcp-servers/dhcp-server[name='%s']/networkid", "dhcp.%s.networkid", NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, false, false},
-	{"/terastream-dhcp:domains/domain", "dhcp.@domain[0].name", NULL, NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']", "network.%s", "interface", NULL, NULL, false, false},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/proto", "network.%s.proto", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/accept_ra", "network.%s.accept_ra", NULL, transform_data_boolean_to_zero_one_negated_transform, transform_data_dhcpv6_interface_only_boolean_transform, false, true},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_pd", "network.%s.request_pd", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/request_na", "network.%s.request_na", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_local", "network.%s.aftr_v4_local", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/aftr_v4_remote", "network.%s.aftr_v4_remote", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
-	{"/terastream-dhcp:dhcp-clients/dhcp-client[name='%s']/reqopts", "network.%s.reqopts", NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
+	{DHCP_SERVER_XPATH_TEMPLATE,			"dhcp.%s", "dhcp", NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/enable",		"dhcp.%s.ignore", NULL,
+	 NULL, transform_data_boolean_to_zero_one_negated_transform, transform_data_zero_one_to_boolean_negated_transform, true, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/interface",	"dhcp.%s.interface", NULL, NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/start",		"dhcp.%s.start", NULL, NULL, NULL, NULL, true, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/stop",		"dhcp.%s.limit", NULL,
+	 NULL, transform_data_stop_to_limit_transform, transform_data_limit_to_stop_transform, true, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/leasetime",	"dhcp.%s.leasetime", NULL,
+	 NULL, transform_data_seconds_to_leasetime_transform, transform_data_leasetime_to_seconds_transform, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/dhcpv6",		"dhcp.%s.dhcpv6", NULL, NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/ra",		"dhcp.%s.ra", NULL, NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/ra_management",	"dhcp.%s.ra_management", NULL, NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/sntp",		"dhcp.%s.sntp", NULL, NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/dhcp_option",	"dhcp.%s.dhcp_option", NULL, NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/dynamicdhcp",	"dhcp.%s.dynamicdhcp", NULL,
+	 NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, true, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/force",		"dhcp.%s.force", NULL,
+	 NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, true, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/ndp",		"dhcp.%s.ndp", NULL, NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/master",		"dhcp.%s.master", NULL,
+	 NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, true, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/networkid",	"dhcp.%s.networkid", NULL,
+	 NULL, transform_data_boolean_to_zero_one_transform, transform_data_zero_one_to_boolean_transform, false, false},
+
+	{"/terastream-dhcp:domains/domain", "dhcp.@domain[0].name", NULL, NULL, NULL, NULL, false, false},
+
+	{DHCP_SERVER_XPATH_TEMPLATE,			"network.%s", "interface", NULL, NULL, NULL, false, false},
+	{DHCP_SERVER_XPATH_TEMPLATE "/proto",		"network.%s.proto", NULL,
+	 NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/accept_ra",	"network.%s.accept_ra", NULL,
+	 NULL, transform_data_boolean_to_zero_one_negated_transform, transform_data_dhcpv6_interface_only_boolean_transform, false, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/request_pd",	"network.%s.request_pd", NULL,
+	 NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/request_na",	"network.%s.request_na", NULL,
+	 NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/aftr_v4_local",	"network.%s.aftr_v4_local", NULL,
+	 NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/aftr_v4_remote",	"network.%s.aftr_v4_remote", NULL,
+	 NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
+	{DHCP_SERVER_XPATH_TEMPLATE "/reqopts",		"network.%s.reqopts", NULL,
+	 NULL, NULL, transform_data_dhcpv6_interface_only_transform, false, true},
 };
 
 static dhcp_ubus_json_transform_table_t dhcp_v4_transform_table[] = {
@@ -146,13 +166,13 @@ int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 
 	SRP_LOG_INFMSG("subscribing to get oper items");
 
-	error = sr_oper_get_items_subscribe(session, DHCP_YANG_MODEL, "/terastream-dhcp:dhcp-v4-leases", dhcp_state_data_cb, NULL, SR_SUBSCR_CTX_REUSE, &subscription);
+	error = sr_oper_get_items_subscribe(session, DHCP_YANG_MODEL, DHCP_V4_STATE_DATA_PATH, dhcp_state_data_cb, NULL, SR_SUBSCR_CTX_REUSE, &subscription);
 	if (error) {
 		SRP_LOG_ERR("sr_oper_get_items_subscribe error (%d): %s", error, sr_strerror(error));
 		goto error_out;
 	}
 
-	error = sr_oper_get_items_subscribe(session, DHCP_YANG_MODEL, "/terastream-dhcp:dhcp-v6-leases", dhcp_state_data_cb, NULL, SR_SUBSCR_CTX_REUSE, &subscription);
+	error = sr_oper_get_items_subscribe(session, DHCP_YANG_MODEL, DHCP_V6_STATE_DATA_PATH, dhcp_state_data_cb, NULL, SR_SUBSCR_CTX_REUSE, &subscription);
 	if (error) {
 		SRP_LOG_ERR("sr_oper_get_items_subscribe error (%d): %s", error, sr_strerror(error));
 		goto error_out;
@@ -691,7 +711,7 @@ cleanup:
 	return;
 }
 
-static int dhcp_v6_ubus_handle_iop3(json_object *ip_array, srpo_ubus_result_values_t *values, const  char *xpath_template, const char *xpath_value) 
+static int dhcp_v6_ubus_handle_iop3(json_object *ip_array, srpo_ubus_result_values_t *values, const  char *xpath_template, const char *xpath_value)
 {
 	size_t array_len = 0;
 	json_object *ip = NULL;
@@ -712,7 +732,7 @@ static int dhcp_v6_ubus_handle_iop3(json_object *ip_array, srpo_ubus_result_valu
 	return 0;
 }
 
-static int dhcp_v6_ubus_handle_iop4(json_object *ip_array, srpo_ubus_result_values_t *values, const  char *xpath_template, const char *xpath_value) 
+static int dhcp_v6_ubus_handle_iop4(json_object *ip_array, srpo_ubus_result_values_t *values, const  char *xpath_template, const char *xpath_value)
 {
 	size_t array_len = 0;
 	json_object *ip = NULL;
