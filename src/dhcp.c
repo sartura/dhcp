@@ -33,9 +33,6 @@ typedef struct {
 	const char *xpath_template;
 } dhcp_ubus_json_transform_table_t;
 
-int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data);
-void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data);
-
 static int dhcp_module_change_cb(sr_session_ctx_t *session, const char *module_name, const char *xpath, sr_event_t event, uint32_t request_id, void *private_data);
 static int dhcp_state_data_cb(sr_session_ctx_t *session, const char *module_name, const char *path, const char *request_xpath, uint32_t request_id, struct lyd_node **parent, void *private_data);
 
@@ -114,7 +111,7 @@ static struct {
 	{"network", network_uci_sections, ARRAY_SIZE(network_uci_sections)},
 };
 
-int dhcp_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
+int sr_plugin_init_cb(sr_session_ctx_t *session, void **private_data)
 {
 	int error = 0;
 	sr_conn_ctx_t *connection = NULL;
@@ -312,7 +309,7 @@ out:
 	return error ? -1 : 0;
 }
 
-void dhcp_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data)
+void sr_plugin_cleanup_cb(sr_session_ctx_t *session, void *private_data)
 {
 	srpo_uci_cleanup();
 
@@ -808,9 +805,9 @@ int main()
 		goto out;
 	}
 
-	error = dhcp_plugin_init_cb(session, &private_data);
+	error = sr_plugin_init_cb(session, &private_data);
 	if (error) {
-		SRP_LOG_ERRMSG("dhcp_plugin_init_cb error");
+		SRP_LOG_ERRMSG("sr_plugin_init_cb error");
 		goto out;
 	}
 
@@ -822,7 +819,7 @@ int main()
 	}
 
 out:
-	dhcp_plugin_cleanup_cb(session, private_data);
+	sr_plugin_cleanup_cb(session, private_data);
 	sr_disconnect(connection);
 
 	return error ? -1 : 0;
